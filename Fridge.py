@@ -68,7 +68,7 @@ def create_tables():
         ''',
         'users': '''
             CREATE TABLE IF NOT EXISTS users (
-                user_id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id VARCHAR(255) PRIMARY KEY,
                 country VARCHAR(255),
                 province VARCHAR(255),
                 district VARCHAR(255),
@@ -80,7 +80,7 @@ def create_tables():
         ''',
         'user_refrigerator': '''
             CREATE TABLE IF NOT EXISTS user_refrigerator (
-                user_id INT,
+                user_id VARCHAR(255),
                 ingredient_id INT,
                 quantity TEXT,
                 added_date DATE,
@@ -90,7 +90,7 @@ def create_tables():
         ''',
         'user_preferences': '''
             CREATE TABLE IF NOT EXISTS user_preferences (
-                user_id INT,
+                user_id VARCHAR(255),
                 preference_type TEXT,
                 value TEXT,
                 is_liked BOOLEAN,
@@ -100,7 +100,6 @@ def create_tables():
     }
     for table_name, create_query in tables.items():
         mycursor.execute(create_query)
-
 
 create_tables()
 
@@ -136,10 +135,10 @@ def get_or_create_ingredient_id(ingredient_name, ingredient_type, cursor, db):
 
 # อ่านข้อมูลจาก Excel sheet
 file_paths = {
-    "menu": 'D:\database-excel\Menu.xlsx',
-    "ingredients": 'D:\database-excel\Ingredients.xlsx',
-    "categories": 'D:\database-excel\Categories.xlsx',
-    "restrictions": 'D:\database-excel\Restrictions.xlsx'
+    "menu": r'D:\database-excel\Menu.xlsx',
+    "ingredients": r'D:\database-excel\Ingredients.xlsx',
+    "categories": r'D:\database-excel\Categories.xlsx',
+    "restrictions": r'D:\database-excel\Restrictions.xlsx'
 }
 
 dataframes = {}

@@ -15,6 +15,8 @@ export default function profile() {
 
       {/* User Info */}
       <Useintro />
+
+      {/* Menu List */}
     </View>
   )
 }
