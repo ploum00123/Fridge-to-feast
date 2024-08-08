@@ -11,17 +11,17 @@ export default function TabLayout() {
         headerShown:false,
         tabBarActiveTintColor:Colors.PRIMARY
         }}>
-        <Tabs.Screen name='home'
-        options={{
-            tabBarLabel:'Home',
-            tabBarIcon:({color})=><FontAwesome5 name="home"
-            size={24} color={color} />
-        }}
-        />
         <Tabs.Screen name='explore'
         options={{
             tabBarLabel:'Explore',
             tabBarIcon:({color})=><FontAwesome5 name="search"
+            size={24} color={color} />
+        }}
+        />
+        <Tabs.Screen name='home'
+        options={{
+            tabBarLabel:'Home',
+            tabBarIcon:({color})=><FontAwesome5 name="home"
             size={24} color={color} />
         }}
         />

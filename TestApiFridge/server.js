@@ -44,6 +44,18 @@ app.post('/saveUserId', (req, res) => {
   });
 });
 
+//ดึงข้อมูลจากตาราง recipes
+app.get('/recipes', (req, res) => {
+  const sql = 'SELECT * FROM recipes';
+  db.query(sql, (err, results) => {
+    if (err) {
+      console.error('Error getting recipes:', err);
+      return res.status(500).send('Server error');
+    }
+    res.send(results);
+  });
+});
+
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
 });

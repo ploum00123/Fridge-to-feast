@@ -1,6 +1,6 @@
-import { View, Text } from 'react-native'
+import { View, Text, Image } from 'react-native'
 import React from 'react'
-import Useintro from '../../components/Profile/Userintro'
+import Userintro from '../../components/Profile/Userintro'
 
 export default function profile() {
   
@@ -14,7 +14,7 @@ export default function profile() {
       }}>profile</Text>
 
       {/* User Info */}
-      <Useintro />
+      <Userintro />
 
       {/* Menu List */}
     </View>
