@@ -1,34 +1,38 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Image, Pressable } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Image, Pressable, ScrollView, } from 'react-native';
 import { useUser } from '@clerk/clerk-expo';
 import axios from 'axios';
 import Recipes from '@/components/Home/Recipes';
+import Header from '@/components/Home/Header';
 
 const HomeScreen = () => {
   const { user } = useUser();
   const [recipes, setRecipes] = useState([]);
 
   useEffect(() => {
-    const sendUserIdToServer = async () => {
-      if (user) {
-        try {
-          await axios.post('http://192.168.1.253:3000/saveUserId', {
-            userId: user.id,
-          });
-          console.log('User ID sent to server');
-        } catch (error) {
-          console.error('Error sending User ID to server:', error);
-        }
-      }
-    };
-
     sendUserIdToServer();
   }, [user]);
 
+  const sendUserIdToServer = async () => {
+    if (user) {
+      try {
+        await axios.post('http://192.168.1.253:3000/saveUserId', {
+          userId: user.id,
+        });
+        console.log('User ID sent to server');
+      } catch (error) {
+        console.error('Error sending User ID to server:', error);
+      }
+    }
+  };
+
   return (
-    <View>
+    <ScrollView>
+      {/* Header */}
+      <Header/>
+      {/* Recipe */}
       <Recipes />
-    </View>
+    </ScrollView>
   );
 };
 
