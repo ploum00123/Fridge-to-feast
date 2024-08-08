@@ -1,39 +1,32 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { View, Text } from 'react-native';
-import * as SecureStore from 'expo-secure-store';
-
-const tokenCache = {
-  getToken(key) {
-    try {
-      return SecureStore.getItemAsync(key);
-    } catch (err) {
-      console.error('Error getting token:', err);
-      return null;
-    }
-  },
-};
+import { useUser } from '@clerk/clerk-expo';
+import axios from 'axios';
 
 const HomeScreen = () => {
-  const [userId, setUserId] = useState(null);
+  const { user } = useUser();
 
   useEffect(() => {
-    const fetchUserId = async () => {
-      const id = await tokenCache.getToken('userId');
-      if (id) {
-        setUserId(id);
-        console.log('Retrieved User ID:', id);
-      } else {
-        console.log('No User ID found');
+    const sendUserIdToServer = async () => {
+      if (user) {
+        try {
+          await axios.post('http://192.168.1.253:3000/saveUserId', {
+            userId: user.id,
+          });
+          console.log('User ID sent to server');
+        } catch (error) {
+          console.error('Error sending User ID to server:', error);
+        }
       }
     };
 
-    fetchUserId();
-  }, []);
+    sendUserIdToServer();
+  }, [user]);
 
   return (
     <View>
       <Text>Welcome to the Home Screen</Text>
-      {userId && <Text>User ID: {userId}</Text>}
+      {user ? <Text>User ID: {user.id}</Text> : <Text>Loading...</Text>}
     </View>
   );
 };

@@ -1,6 +1,6 @@
 import { View, Text } from 'react-native'
 import React from 'react'
-import Useintro from '../../components/Profile/Useintro'
+import Useintro from '../../components/Profile/Userintro'
 
 export default function profile() {
   
