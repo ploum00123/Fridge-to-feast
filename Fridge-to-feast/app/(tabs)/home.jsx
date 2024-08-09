@@ -4,10 +4,10 @@ import { useUser } from '@clerk/clerk-expo';
 import axios from 'axios';
 import Recipes from '@/components/Home/Recipes';
 import Header from '@/components/Home/Header';
+import Category from '@/components/Home/Category';
 
 const HomeScreen = () => {
   const { user } = useUser();
-  const [recipes, setRecipes] = useState([]);
 
   useEffect(() => {
     sendUserIdToServer();
@@ -27,12 +27,16 @@ const HomeScreen = () => {
   };
 
   return (
-    <ScrollView>
-      {/* Header */}
-      <Header/>
-      {/* Recipe */}
-      <Recipes />
-    </ScrollView>
+    <FlatList
+      ListHeaderComponent={
+        <View>
+          <Header />
+          <Category/>
+          <Recipes />
+        </View>
+      }
+      contentContainerStyle={styles.contentContainer}
+    />
   );
 };
 

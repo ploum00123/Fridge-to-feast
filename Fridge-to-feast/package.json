@@ -19,6 +19,7 @@
     "@clerk/shared": "^2.4.3",
     "@expo/metro-runtime": "~3.2.1",
     "@expo/vector-icons": "^14.0.2",
+    "@react-native-picker/picker": "^2.7.7",
     "@react-navigation/native": "^6.0.2",
     "axios": "^1.7.3",
     "expo": "~51.0.24",

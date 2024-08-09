@@ -18,7 +18,9 @@ db.connect(err => {
 });
 
 app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
+// บันทึก userId ในฐานข้อมูล
 app.post('/saveUserId', (req, res) => {
   const userId = req.body.userId;
   const checkSql = 'SELECT * FROM users WHERE user_id = ?';
@@ -28,10 +30,8 @@ app.post('/saveUserId', (req, res) => {
       return res.status(500).send('Server error');
     }
     if (results.length > 0) {
-      // User ID already exists
       res.send('User ID already exists');
     } else {
-      // User ID does not exist, insert it
       const insertSql = 'INSERT INTO users (user_id) VALUES (?)';
       db.query(insertSql, [userId], (err, result) => {
         if (err) {
@@ -44,7 +44,7 @@ app.post('/saveUserId', (req, res) => {
   });
 });
 
-//ดึงข้อมูลจากตาราง recipes
+// ดึงข้อมูลจากตาราง recipes
 app.get('/recipes', (req, res) => {
   const sql = 'SELECT * FROM recipes';
   db.query(sql, (err, results) => {
@@ -52,7 +52,39 @@ app.get('/recipes', (req, res) => {
       console.error('Error getting recipes:', err);
       return res.status(500).send('Server error');
     }
-    res.send(results);
+    res.json(results);
+  });
+});
+
+// ดึงข้อมูลจากตาราง categories
+app.get('/categories', (req, res) => {
+  const sql = 'SELECT * FROM categories';
+  db.query(sql, (err, results) => {
+    if (err) {
+      console.error('Error getting categories:', err);
+      return res.status(500).send('Server error');
+    }
+    res.json(results);
+  });
+});
+
+// ดึงข้อมูลจากตาราง ingredients
+app.get('/ingredients', (req, res) => {
+  const sql = 'SELECT * FROM ingredients';
+  db.query(sql, (err, results) => {
+    if (err) {
+      console.error('Error getting ingredients:', err);
+      return res.status(500).send('Server error');
+    }
+    res.json(results);
+  });
+});
+
+app.get('/categories', (req, res, next) => {
+  connection.query('SELECT DISTINCT ingredient_type FROM ingredients', (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    const categories = results.map(result => result.ingredient_category);
+    res.json(categories);
   });
 });
 
