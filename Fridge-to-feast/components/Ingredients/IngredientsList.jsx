@@ -1,71 +1,104 @@
-import React from 'react';
-import { FlatList, StyleSheet, Pressable, Image, View, Text } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, FlatList, Image, Pressable } from 'react-native';
+import axios from 'axios';
 
-export default function IngredientList({ data, renderItem, isLoading, fetchIngredients }) {
-  const chunkArray = (array, size) => {
-    const chunkedArr = [];
-    for (let i = 0; i < array.length; i += size) {
-      chunkedArr.push(array.slice(i, i + size));
-    }
-    return chunkedArr;
-  };
+export default function Recipes() {
 
-  const chunkedData = chunkArray(data, 2);
+    const [recipes, setRecipes] = useState([]);
+    useEffect(() => {
+        const fetchRecipes = async () => {
+            try {
+                const response = await axios.get('http://192.168.1.253:3000/recipes');
+                setRecipes(response.data);
+            } catch (error) {
+                console.error(error);
+            }
+        };
 
-  return (
-    <FlatList
-      data={chunkedData}
-      renderItem={renderItem}
-      keyExtractor={(item, index) => index.toString()}
-      refreshing={isLoading}
-      onRefresh={fetchIngredients}
-      contentContainerStyle={styles.contentContainer}
-      showsVerticalScrollIndicator={false}
-    />
-  );
+        fetchRecipes();
+    }, []);
+
+    const renderItem = ({ item }) => (
+        <Pressable style={styles.recipeContainer}>
+            {item.image_path && <Image source={{ uri: item.image_path }} style={styles.image} />}
+            {item.recipe_name && <Text style={styles.recipeName}>{item.recipe_name}</Text>}
+        </Pressable>
+    );
+
+    const chunkArray = (array, size) => {
+        const chunkedArr = [];
+        for (let i = 0; i < array.length; i += size) {
+            chunkedArr.push(array.slice(i, i + size));
+        }
+        return chunkedArr;
+    };
+
+    const chunkedData = chunkArray(recipes, 2);
+
+    return (
+        <View>
+            <Text style={styles.heading}>Recipes</Text>
+            <FlatList
+                data={chunkedData}
+                renderItem={({ item }) => (
+                    <View style={styles.row}>
+                        {item.map((recipe) => (
+                            <View key={recipe.recipe_id} style={styles.column}>
+                                {renderItem({ item: recipe })}
+                            </View>
+                        ))}
+                        {item.length === 1 && <View style={[styles.column, styles.emptyColumn]} />}
+                    </View>
+                )}
+                keyExtractor={(item, index) => item[0].recipe_id.toString()}
+                contentContainerStyle={styles.contentContainer}
+                showsVerticalScrollIndicator={false}
+            />
+        </View>
+    );
 }
 
 const styles = StyleSheet.create({
-  contentContainer: {
-    paddingHorizontal: 10,
-    paddingBottom: 20,
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  column: {
-    flex: 1,
-    paddingHorizontal: 5,
-  },
-  featureContainer: {
-    backgroundColor: '#fff',
-    padding: 15,
-    borderRadius: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 10,
-    elevation: 5,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  selectedContainer: {
-    borderColor: '#007BFF',
-  },
-  image: {
-    width: '100%',
-    height: 150,
-    borderRadius: 10,
-    marginBottom: 10,
-  },
-  textContainer: {
-    padding: 10,
-  },
-  menuName: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-  },
+    container: {
+        flex: 1,
+        padding: 11,
+    },
+    heading: {
+        fontSize: 30,
+        fontWeight: 'outfit-bold',
+        marginBottom: 16,
+        marginTop: 16,
+    },
+    row: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: -5,
+    },
+    column: {
+        flex: 1,
+        paddingHorizontal: 4,
+    },
+    emptyColumn: {
+        flex: 1,
+    },
+    recipeContainer: {
+        backgroundColor: '#f9f9f9',
+        borderRadius: 4,
+        marginBottom: 16,
+        borderColor: '#000',
+        borderWidth: 1,
+    },
+    image: {
+        width: '100%',
+        height: 200,
+    },
+    recipeName: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        padding: 8,
+        textAlign: 'center',
+    },
+    contentContainer: {
+        paddingBottom: 20,
+    },
 });

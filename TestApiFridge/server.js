@@ -70,6 +70,29 @@ app.get('/recipes', (req, res) => {
   });
 });
 
+// ดึงข้อมูลจากตาราง recipe_ingredients โดยใช้ recipe_id
+app.get('/recipe_ingredients', (req, res) => {
+  const recipeId = req.query.recipe_id; // รับค่าพารามิเตอร์ recipe_id จาก query string
+
+  if (!recipeId) {
+    return res.status(400).json({ error: 'Recipe ID is required' });
+  }
+
+  const sql = `
+    SELECT ri.ingredient_id, i.ingredient_name 
+    FROM recipe_ingredients ri
+    JOIN ingredients i ON ri.ingredient_id = i.ingredient_id
+    WHERE ri.recipe_id = ?`;
+  
+  db.query(sql, [recipeId], (err, results) => {
+    if (err) {
+      console.error('Database query error:', err);
+      return res.status(500).json({ error: 'Database query failed' });
+    }
+
+    res.json(results);
+  });
+});
 
 
 // ดึงข้อมูลจากตาราง categories

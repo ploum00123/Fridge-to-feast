@@ -1,8 +1,9 @@
 import pandas as pd
 import mysql.connector
 import re
+import os
 
-# Connect to MySQL database
+# เชื่อมต่อฐานข้อมูล MySQL
 mydb = mysql.connector.connect(
     host="localhost",
     user="root",
@@ -12,12 +13,19 @@ mydb = mysql.connector.connect(
 
 mycursor = mydb.cursor()
 
-# Create tables if they don't exist
+# สร้างตารางถ้ายังไม่มี (รวมถึงตาราง ingredient_categories)
 def create_tables():
     tables = {
         'categories': '''
             CREATE TABLE IF NOT EXISTS categories (
                 category_id INT AUTO_INCREMENT PRIMARY KEY,
+                category_name VARCHAR(255),
+                category_image VARCHAR(255)
+            )
+        ''',
+        'ingredient_categories': '''
+            CREATE TABLE IF NOT EXISTS ingredient_categories (
+                ingredient_category_id INT AUTO_INCREMENT PRIMARY KEY,
                 category_name VARCHAR(255),
                 category_image VARCHAR(255)
             )
@@ -38,7 +46,9 @@ def create_tables():
                 ingredient_id INT AUTO_INCREMENT PRIMARY KEY,
                 ingredient_name VARCHAR(255),
                 ingredient_type VARCHAR(255),
-                ingredient_image VARCHAR(255)
+                ingredient_image VARCHAR(255),
+                ingredient_category_id INT,
+                FOREIGN KEY(ingredient_category_id) REFERENCES ingredient_categories(ingredient_category_id)
             )
         ''',
         'recipe_ingredients': '''
@@ -105,74 +115,129 @@ def create_tables():
 create_tables()
 
 # เพิ่มคอลัมน์ category_image และ ingredient_image ถ้ายังไม่มีอยู่ในตาราง
-def add_category_image_column(cursor):
+def add_columns_if_not_exists(cursor):
+    # เพิ่มคอลัมน์ 'category_image' ในตาราง 'categories' ถ้ายังไม่มี
     cursor.execute("""
         ALTER TABLE categories
         ADD COLUMN IF NOT EXISTS category_image VARCHAR(255)
     """)
+    
+    # เพิ่มคอลัมน์ 'ingredient_image' ในตาราง 'ingredients' ถ้ายังไม่มี
     cursor.execute("""
         ALTER TABLE ingredients
         ADD COLUMN IF NOT EXISTS ingredient_image VARCHAR(255)
     """)
+    
+    # ตรวจสอบและลบ FOREIGN KEY ถ้ามีอยู่แล้ว
+    try:
+        cursor.execute("ALTER TABLE ingredients DROP FOREIGN KEY fk_ingredient_category;")
+    except mysql.connector.Error as err:
+        if err.errno == 1091:  # Error code for "Can't DROP; check that column/key exists"
+            print("FOREIGN KEY does not exist, skipping drop.")
+        else:
+            raise err
+
+    # เพิ่มคอลัมน์ 'ingredient_category_id' และสร้าง FOREIGN KEY ถ้ายังไม่มี
+    try:
+        cursor.execute("""
+            ALTER TABLE ingredients
+            ADD COLUMN IF NOT EXISTS ingredient_category_id INT
+        """)
+        cursor.execute("""
+            ALTER TABLE ingredients
+            ADD CONSTRAINT fk_ingredient_category
+            FOREIGN KEY (ingredient_category_id) 
+            REFERENCES ingredient_categories(ingredient_category_id)
+        """)
+    except mysql.connector.Error as err:
+        if err.errno == 121:  # Duplicate key error
+            print("FOREIGN KEY or column already exists. Skipping creation.")
+        else:
+            raise err
+    
     mydb.commit()
 
+
+
 # เรียกใช้ฟังก์ชันเพื่อเพิ่มคอลัมน์
-with mydb.cursor() as cursor:
-    add_category_image_column(cursor)
+add_columns_if_not_exists(mycursor)
+
+# ฟังก์ชันเพื่อดึงหรือเพิ่มหมวดหมู่วัตถุดิบและคืนค่า ID
+def get_or_create_ingredient_category_id(category_name, category_image, cursor, db):
+    cursor.execute("SELECT ingredient_category_id FROM ingredient_categories WHERE category_name = %s", (category_name,))
+    result = cursor.fetchone()
+    cursor.fetchall()
+    if result:
+        return result[0]
+    else:
+        cursor.execute("""
+            INSERT INTO ingredient_categories (category_name, category_image) 
+            VALUES (%s, %s) 
+            ON DUPLICATE KEY UPDATE 
+            category_name=VALUES(category_name), 
+            category_image=VALUES(category_image)
+        """, (category_name, category_image))
+        db.commit()
+        cursor.execute("SELECT LAST_INSERT_ID()")
+        return cursor.fetchone()[0]
 
 # ฟังก์ชันเพื่อดึงหรือเพิ่มข้อมูลและคืนค่า ID
 def get_or_create_id(table_name, id_column_name, column_name, value, cursor, db):
     cursor.execute(f"SELECT {id_column_name} FROM {table_name} WHERE {column_name} = %s", (value,))
     result = cursor.fetchone()
-    cursor.fetchall()  # Clear any unread results
+    cursor.fetchall()
     if result:
         return result[0]
     else:
         cursor.execute(f"INSERT INTO {table_name} ({column_name}) VALUES (%s) ON DUPLICATE KEY UPDATE {column_name}=VALUES({column_name})", (value,))
         db.commit()
         cursor.execute("SELECT LAST_INSERT_ID()")
-        result = cursor.fetchone()
-        cursor.fetchall()  # Clear any unread results
-        return result[0]
+        return cursor.fetchone()[0]
 
-# แก้ไขฟังก์ชัน get_or_create_id สำหรับ ingredients เพื่อจัดการกับ ingredient_type และ ingredient_image
-def get_or_create_ingredient_id(ingredient_name, ingredient_type, cursor, db):
+# ฟังก์ชันเพื่อจัดการการแทรกข้อมูล ingredients
+def get_or_create_ingredient_id(ingredient_name, ingredient_type, ingredient_category_id, cursor, db):
     cursor.execute("SELECT ingredient_id FROM ingredients WHERE ingredient_name = %s", (ingredient_name,))
     result = cursor.fetchone()
-    cursor.fetchall()  # Clear any unread results
+    cursor.fetchall()
     if result:
         return result[0]
     else:
         cursor.execute("""
-            INSERT INTO ingredients (ingredient_name, ingredient_type) 
-            VALUES (%s, %s) 
+            INSERT INTO ingredients (ingredient_name, ingredient_type, ingredient_category_id) 
+            VALUES (%s, %s, %s) 
             ON DUPLICATE KEY UPDATE 
             ingredient_name=VALUES(ingredient_name), 
-            ingredient_type=VALUES(ingredient_type)
-        """, (ingredient_name, ingredient_type))
+            ingredient_type=VALUES(ingredient_type),
+            ingredient_category_id=VALUES(ingredient_category_id)
+        """, (ingredient_name, ingredient_type, ingredient_category_id))
         db.commit()
         cursor.execute("SELECT LAST_INSERT_ID()")
-        result = cursor.fetchone()
-        cursor.fetchall()  # Clear any unread results
-        return result[0]
+        return cursor.fetchone()[0]
 
-# อ่านข้อมูลจาก Excel sheet
+# อ่านข้อมูลจาก Excel sheet ต่างๆ
 file_paths = {
     "menu": r'D:\database-excel\Menu.xlsx',
     "ingredients": r'D:\database-excel\Ingredients.xlsx',
     "categories": r'D:\database-excel\Categories.xlsx',
-    "restrictions": r'D:\database-excel\Restrictions.xlsx'
+    "restrictions": r'D:\database-excel\Restrictions.xlsx',
+    "ingredient_categories": r'D:\database-excel\Ingredient_Categories.xlsx' 
 }
 
 dataframes = {}
 for key, path in file_paths.items():
-    dataframes[key] = pd.read_excel(path)
-    print(f"Columns in {key}:", dataframes[key].columns)
+    if os.access(path, os.R_OK):
+        dataframes[key] = pd.read_excel(path)
+        print(f"Columns in {key}:", dataframes[key].columns)
+    else:
+        print(f"ไม่สามารถอ่านไฟล์ได้: {path}")
+        mydb.close()
+        exit()
 
 df_recipes = dataframes["menu"]
 df_ingredients = dataframes["ingredients"]
 df_categories = dataframes["categories"]
 df_restrictions = dataframes["restrictions"]
+df_ingredient_categories = dataframes["ingredient_categories"]
 
 # สร้าง sets เพื่อเก็บข้อมูล ingredients, categories, และ restrictions
 all_ingredients = set()
@@ -192,25 +257,24 @@ for _, row in df_recipes.iterrows():
     if not pd.isna(row['restriction_name']):
         all_restrictions.add(row['restriction_name'])
 
-# Print the sets to check the extracted data
-print("All ingredients:", all_ingredients)
-print("All categories:", all_categories)
-print("All restrictions:", all_restrictions)
-
 # Insert ข้อมูลจาก sets ลงในตารางที่เกี่ยวข้อง
 with mydb.cursor() as cursor:
+    for index, row in df_ingredient_categories.iterrows():
+        category_name = row['category_name']
+        category_image = row['category_image']
+        if pd.notna(category_name):
+            get_or_create_ingredient_category_id(category_name, category_image, cursor, mydb)
+
     for index, row in df_ingredients.iterrows():
         ingredient_name = row['ingredient_name']
         ingredient_type = row['ingredient_type']
-        ingredient_image = row.get('ingredient_image') if 'ingredient_image' in df_ingredients.columns else None
-
-        ingredient_id = get_or_create_ingredient_id(ingredient_name, ingredient_type, cursor, mydb)
+        ingredient_category_id = None
         
-        # Update the ingredient_image if available
-        if ingredient_image:
-            cursor.execute("UPDATE ingredients SET ingredient_image = %s WHERE ingredient_id = %s", 
-                           (ingredient_image, ingredient_id))
-    mydb.commit()
+        # ตรวจสอบก่อนว่า 'category_name' อยู่ในคอลัมน์ของ 'df_ingredients' หรือไม่
+        if 'category_name' in row and pd.notna(row['category_name']):
+            ingredient_category_id = get_or_create_id('ingredient_categories', 'ingredient_category_id', 'category_name', row['category_name'], cursor, mydb)
+        
+        ingredient_id = get_or_create_ingredient_id(ingredient_name, ingredient_type, ingredient_category_id, cursor, mydb)
 
     for item in all_categories:
         get_or_create_id('categories', 'category_id', 'category_name', item, cursor, mydb)
@@ -238,11 +302,10 @@ def insert_recipe_ingredients(ingredient_column, is_essential, is_main, row, rec
 with mydb.cursor() as cursor:
     for index, row in df_categories.iterrows():
         category_name = row['category_name']
-        category_image = row.get('category_image') if 'category_image' in df_categories.columns else None
+        category_image = row['category_image']
         
         if pd.notna(category_name):
             category_id = get_or_create_id('categories', 'category_id', 'category_name', category_name, cursor, mydb)
-            # อัปเดตตาราง categories เพื่อเพิ่มข้อมูลรูปภาพ ถ้ามี category_image
             if category_image:
                 cursor.execute("UPDATE categories SET category_image = %s WHERE category_id = %s", (category_image, category_id))
     mydb.commit()
@@ -250,7 +313,6 @@ with mydb.cursor() as cursor:
 # วนลูปและ insert ข้อมูลสูตรอาหาร
 with mydb.cursor() as cursor:
     for index, row in df_recipes.iterrows():
-        # ใช้ re.sub เพื่อแปลงข้อความ instructions ให้มีการเว้นบรรทัดเมื่อเจอตัวเลขตามด้วยจุด
         instructions = re.sub(r'(\d+\.\s+)', r'\n\1', row['instructions'])
         category_id = get_or_create_id('categories', 'category_id', 'category_name', row['category_name'], cursor, mydb)
 
@@ -261,20 +323,14 @@ with mydb.cursor() as cursor:
         
         recipe_id = cursor.lastrowid
 
-        # Insert วัตถุดิบและเครื่องปรุง
         insert_recipe_ingredients('main_ingredients', True, True, row, recipe_id, cursor)
         insert_recipe_ingredients('other_ingredients', False, False, row, recipe_id, cursor)
         insert_recipe_ingredients('seasonings', False, False, row, recipe_id, cursor)
 
-        # Insert ข้อจำกัดด้านอาหาร
         if not pd.isna(row['restriction_name']):
             restriction_id = get_or_create_id('dietary_restrictions', 'restriction_id', 'restriction_name', row['restriction_name'], cursor, mydb)
-            cursor.execute("INSERT INTO recipe_restrictions (recipe_id, restriction_id) VALUES (%s, %s)", 
-                           (recipe_id, restriction_id))
+            cursor.execute("INSERT INTO recipe_restrictions (recipe_id, restriction_id) VALUES (%s, %s)", (recipe_id, restriction_id))
         mydb.commit()
-
-        # พิมพ์ข้อมูล instructions ที่ถูกแปลงแล้ว
-        print(f"Updated instructions for recipe '{row['recipe_name']}':\n{instructions}\n")
 
 # ปิดการเชื่อมต่อ
 mydb.close()
