@@ -2,26 +2,26 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, Image, Pressable } from 'react-native';
 import axios from 'axios';
 
-export default function Recipes() {
+export default function Ingredients() {
 
-    const [recipes, setRecipes] = useState([]);
+    const [ingredients, setIngredients] = useState([]);
     useEffect(() => {
-        const fetchRecipes = async () => {
+        const fetchIngredients = async () => {
             try {
-                const response = await axios.get('http://192.168.1.253:3000/recipes');
-                setRecipes(response.data);
+                const response = await axios.get('http://192.168.1.253:3000/ingredients');
+                setIngredients(response.data);
             } catch (error) {
                 console.error(error);
             }
         };
 
-        fetchRecipes();
+        fetchIngredients();
     }, []);
 
     const renderItem = ({ item }) => (
-        <Pressable style={styles.recipeContainer}>
-            {item.image_path && <Image source={{ uri: item.image_path }} style={styles.image} />}
-            {item.recipe_name && <Text style={styles.recipeName}>{item.recipe_name}</Text>}
+        <Pressable style={styles.ingredientContainer}>
+            {item.ingredient_image && <Image source={{ uri: item.ingredient_image }} style={styles.image} />}
+            {item.ingredient_name && <Text style={styles.ingredientName}>{item.ingredient_name}</Text>}
         </Pressable>
     );
 
@@ -33,24 +33,24 @@ export default function Recipes() {
         return chunkedArr;
     };
 
-    const chunkedData = chunkArray(recipes, 2);
+    const chunkedData = chunkArray(ingredients, 2);
 
     return (
         <View>
-            <Text style={styles.heading}>Recipes</Text>
+            <Text style={styles.heading}>Ingredients</Text>
             <FlatList
                 data={chunkedData}
                 renderItem={({ item }) => (
                     <View style={styles.row}>
-                        {item.map((recipe) => (
-                            <View key={recipe.recipe_id} style={styles.column}>
-                                {renderItem({ item: recipe })}
+                        {item.map((ingredient) => (
+                            <View key={ingredient.ingredient_id} style={styles.column}>
+                                {renderItem({ item: ingredient })}
                             </View>
                         ))}
                         {item.length === 1 && <View style={[styles.column, styles.emptyColumn]} />}
                     </View>
                 )}
-                keyExtractor={(item, index) => item[0].recipe_id.toString()}
+                keyExtractor={(item, index) => item[0].ingredient_id.toString()}
                 contentContainerStyle={styles.contentContainer}
                 showsVerticalScrollIndicator={false}
             />
@@ -81,7 +81,7 @@ const styles = StyleSheet.create({
     emptyColumn: {
         flex: 1,
     },
-    recipeContainer: {
+    ingredientContainer: {
         backgroundColor: '#f9f9f9',
         borderRadius: 4,
         marginBottom: 16,
@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
         width: '100%',
         height: 200,
     },
-    recipeName: {
+    ingredientName: {
         fontSize: 20,
         fontWeight: 'bold',
         padding: 8,

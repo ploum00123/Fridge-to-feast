@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Image, Pressable, ScrollView, } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Image, Pressable, ScrollView, TouchableOpacity, } from 'react-native';
 import { useUser } from '@clerk/clerk-expo';
 import axios from 'axios';
-import Recipes from '@/components/Home/Recipes';
-import Category from '@/components/Home/Category';
 import Search from '@/components/Ingredients/Search';
+import Ingredients from '@/components/Ingredients/IngredientsList';
+import IngredientsCategory from '@/components/Ingredients/IngredientCate';
+import { useRouter } from 'expo-router';
 
 const IngredientsScreen = () => {
   const { user } = useUser();
+  const router = useRouter();
 
   useEffect(() => {
     sendUserIdToServer();
@@ -26,17 +28,29 @@ const IngredientsScreen = () => {
     }
   };
 
+  const navigateToAddIngredient = () => {
+    router.push('/addingre/[addingre].js'); // นำทางไปยังหน้าที่ต้องการ
+  };
+
   return (
-    <FlatList
-      ListHeaderComponent={
-        <View>
-          <Search />
-          <Category/>
-          <Recipes />
-        </View>
-      }
-      contentContainerStyle={styles.contentContainer}
-    />
+    <View style={styles.container}>
+      <FlatList
+        ListHeaderComponent={
+          <View>
+            <Search />
+            <IngredientsCategory />
+            <Ingredients />
+          </View>
+        }
+        contentContainerStyle={styles.contentContainer}
+      />
+      <TouchableOpacity
+        style={styles.addButton}
+        onPress={navigateToAddIngredient}
+      >
+        <Text style={styles.addButtonText}>Add Ingredient</Text>
+      </TouchableOpacity>
+    </View>
   );
 };
 
@@ -47,42 +61,29 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 11,
   },
-  heading: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 16,
-    marginTop: 16,
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: -5,
-  },
-  column: {
-    flex: 1,
-    paddingHorizontal: 4,
-  },
-  emptyColumn: {
-    flex: 1,
-  },
-  recipeContainer: {
-    backgroundColor: '#f9f9f9',
-    borderRadius: 4,
-    marginBottom: 16,
-    borderColor: '#000',
-    borderWidth: 1,
-  },
-  image: {
-    width: '100%',
-    height: 150,
-  },
-  recipeName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    padding: 8,
-    textAlign: 'center',
-  },
   contentContainer: {
-    paddingBottom: 20,
+    paddingBottom: 80, // เพิ่ม padding ด้านล่างเพื่อให้ FlatList ไม่ซ้อนทับปุ่ม
+  },
+  addButton: {
+    position: 'absolute',
+    bottom: 20,
+    left: 20,
+    right: 20,
+    backgroundColor: '#ff6347', // สีแดงมะเขือเทศ
+    padding: 15,
+    borderRadius: 12,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
+    elevation: 5, // สำหรับ Android เพื่อให้เงาแสดงผล
+  },
+  addButtonText: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
+    letterSpacing: 1.5, // เพิ่มการเว้นระยะระหว่างตัวอักษร
   },
 });

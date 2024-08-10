@@ -139,6 +139,79 @@ app.get('/user_ingredients', (req, res) => {
   });
 });
 
+// ดึงข้อมูล ingredients ที่ตรงกับ category_name ของ ingredient_categories
+app.get('/ingredients_by_category', (req, res) => {
+  const category_name = req.query.category_name;
+
+  if (!category_name) {
+    return res.status(400).json({ error: 'Category name is required' });
+  }
+
+  const sql = `
+    SELECT i.* 
+    FROM ingredients i
+    JOIN ingredient_categories ic ON i.ingredient_type = ic.category_name
+    WHERE ic.category_name = ?`;
+
+  db.query(sql, [category_name], (err, results) => {
+    if (err) {
+      console.error('Error getting ingredients by category:', err);
+      return res.status(500).send('Server error');
+    }
+
+    res.json(results);
+  });
+});
+
+// Route to fetch all ingredient_categories
+app.get('/ingredient_categories', (req, res) => {
+  const sql = 'SELECT * FROM ingredient_categories';
+  db.query(sql, (err, results) => {
+    if (err) {
+      console.error('Error getting ingredient categories:', err);
+      return res.status(500).send('Server error');
+    }
+    res.json(results);
+  });
+});
+
+// Route to add ingredient to user's refrigerator
+app.post('/add_ingredient', (req, res) => {
+  const { user_id, ingredient_id } = req.body;
+
+  if (!user_id || !ingredient_id) {
+    return res.status(400).json({ error: 'User ID and Ingredient ID are required' });
+  }
+
+  const sql = 'INSERT INTO user_refrigerator (user_id, ingredient_id, added_date) VALUES (?, ?, NOW())';
+  db.query(sql, [user_id, ingredient_id], (err, result) => {
+    if (err) {
+      console.error('Error adding ingredient to user refrigerator:', err);
+      return res.status(500).json({ error: 'Failed to add ingredient' });
+    }
+    res.json({ message: 'Ingredient added successfully', id: result.insertId });
+  });
+});
+
+// Route to get user's ingredients
+app.get('/user_ingredients/:user_id', (req, res) => {
+  const user_id = req.params.user_id;
+
+  const sql = `
+    SELECT i.* 
+    FROM ingredients i
+    JOIN user_refrigerator ur ON i.ingredient_id = ur.ingredient_id
+    WHERE ur.user_id = ?`;
+
+  db.query(sql, [user_id], (err, results) => {
+    if (err) {
+      console.error('Error getting user ingredients:', err);
+      return res.status(500).json({ error: 'Failed to get user ingredients' });
+    }
+    res.json(results);
+  });
+});
+
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
 });
