@@ -1,9 +1,14 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const mysql = require('mysql');
+const cors = require('cors'); // Added for CORS
 
 const app = express();
 const port = 3000;
+
+app.use(cors()); // Enable CORS for all routes
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
 const db = mysql.createConnection({
   host: 'localhost',
@@ -17,10 +22,7 @@ db.connect(err => {
   console.log('Connected to database');
 });
 
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
-
-// บันทึก userId ในฐานข้อมูล
+// Route to save userId
 app.post('/saveUserId', (req, res) => {
   const userId = req.body.userId;
   const checkSql = 'SELECT * FROM users WHERE user_id = ?';
@@ -44,15 +46,15 @@ app.post('/saveUserId', (req, res) => {
   });
 });
 
-// ดึงข้อมูลจากตาราง recipes
+// Route to fetch recipes
 app.get('/recipes', (req, res) => {
-  const category = req.query.category_id; // รับค่าพารามิเตอร์ category_id จาก query string
+  const category = req.query.category_id; 
 
   let sql = 'SELECT * FROM recipes';
   const params = [];
 
   if (category) {
-    sql += ' WHERE category_id = ?'; // กรองตาม category_id หรือปรับเป็นชื่อคอลัมน์ที่ใช้จริง
+    sql += ' WHERE category_id = ?'; 
     params.push(category);
   }
 
@@ -66,13 +68,13 @@ app.get('/recipes', (req, res) => {
       return res.status(404).json({ error: 'No recipes found for this category' });
     }
 
-    res.json(results); // ส่งข้อมูลเมนูที่ถูกกรองกลับไปยัง client
+    res.json(results);
   });
 });
 
-// ดึงข้อมูลจากตาราง recipe_ingredients โดยใช้ recipe_id
+// Route to fetch recipe ingredients by recipe_id
 app.get('/recipe_ingredients', (req, res) => {
-  const recipeId = req.query.recipe_id; // รับค่าพารามิเตอร์ recipe_id จาก query string
+  const recipeId = req.query.recipe_id; 
 
   if (!recipeId) {
     return res.status(400).json({ error: 'Recipe ID is required' });
@@ -94,8 +96,7 @@ app.get('/recipe_ingredients', (req, res) => {
   });
 });
 
-
-// ดึงข้อมูลจากตาราง categories
+// Route to fetch all categories
 app.get('/categories', (req, res) => {
   const sql = 'SELECT * FROM categories';
   db.query(sql, (err, results) => {
@@ -107,7 +108,7 @@ app.get('/categories', (req, res) => {
   });
 });
 
-// ดึงข้อมูลจากตาราง ingredients
+// Route to fetch all ingredients
 app.get('/ingredients', (req, res) => {
   const sql = 'SELECT * FROM ingredients';
   db.query(sql, (err, results) => {
@@ -119,8 +120,9 @@ app.get('/ingredients', (req, res) => {
   });
 });
 
+// Route to fetch user ingredients by user_id
 app.get('/user_ingredients', (req, res) => {
-  const userId = req.query.userId; // สมมติว่า userId คาดหวังว่ามาจาก query parameters
+  const userId = req.query.userId; 
 
   if (!userId) {
     return res.status(400).json({ error: 'User ID is required' });
@@ -136,7 +138,6 @@ app.get('/user_ingredients', (req, res) => {
     res.json(results);
   });
 });
-
 
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);

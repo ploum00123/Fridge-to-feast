@@ -61,6 +61,8 @@ export default function MenuListByCategory() {
             {menuList.length > 0 ? (
                 <FlatList
                     data={menuList}
+                    onRefresh={getMenuList}
+                    refreshing={loading}
                     renderItem={({ item }) => (
                         <MenuListCard
                             menu={item}

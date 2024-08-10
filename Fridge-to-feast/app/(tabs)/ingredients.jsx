@@ -3,10 +3,10 @@ import { View, Text, StyleSheet, FlatList, Image, Pressable, ScrollView, } from 
 import { useUser } from '@clerk/clerk-expo';
 import axios from 'axios';
 import Recipes from '@/components/Home/Recipes';
-import Header from '@/components/Home/Header';
 import Category from '@/components/Home/Category';
+import Search from '@/components/Ingredients/Search';
 
-const HomeScreen = () => {
+const IngredientsScreen = () => {
   const { user } = useUser();
 
   useEffect(() => {
@@ -30,7 +30,7 @@ const HomeScreen = () => {
     <FlatList
       ListHeaderComponent={
         <View>
-          <Header />
+          <Search />
           <Category/>
           <Recipes />
         </View>
@@ -40,7 +40,7 @@ const HomeScreen = () => {
   );
 };
 
-export default HomeScreen;
+export default IngredientsScreen;
 
 const styles = StyleSheet.create({
   container: {

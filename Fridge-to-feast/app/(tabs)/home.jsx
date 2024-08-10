@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Image, Pressable, ScrollView, } from 'react-native';
+import { View, StyleSheet, FlatList } from 'react-native';
 import { useUser } from '@clerk/clerk-expo';
 import axios from 'axios';
 import Recipes from '@/components/Home/Recipes';
@@ -8,21 +8,23 @@ import Category from '@/components/Home/Category';
 
 const HomeScreen = () => {
   const { user } = useUser();
+  const [isUserIdSent, setIsUserIdSent] = useState(false); // สถานะการส่ง userId
 
   useEffect(() => {
-    sendUserIdToServer();
+    if (user && !isUserIdSent) {
+      sendUserIdToServer();
+    }
   }, [user]);
 
   const sendUserIdToServer = async () => {
-    if (user) {
-      try {
-        await axios.post('http://192.168.1.253:3000/saveUserId', {
-          userId: user.id,
-        });
-        console.log('User ID sent to server');
-      } catch (error) {
-        console.error('Error sending User ID to server:', error);
-      }
+    try {
+      await axios.post('http://192.168.1.253:3000/saveUserId', {
+        userId: user.id,
+      });
+      console.log('User ID sent to server');
+      setIsUserIdSent(true); // ตั้งสถานะว่าการส่งสำเร็จแล้ว
+    } catch (error) {
+      console.error('Error sending User ID to server:', error);
     }
   };
 
@@ -31,7 +33,7 @@ const HomeScreen = () => {
       ListHeaderComponent={
         <View>
           <Header />
-          <Category/>
+          <Category />
           <Recipes />
         </View>
       }
