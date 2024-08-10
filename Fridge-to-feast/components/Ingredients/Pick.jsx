@@ -3,7 +3,7 @@ import { View, StyleSheet } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import axios from 'axios';
 
-export default function Pick() {
+export default function CategoryPicker() {
 
     const [ingredients, setIngredients] = useState([]);
     const [, setFilteredItems] = useState([]);

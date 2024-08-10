@@ -46,15 +46,31 @@ app.post('/saveUserId', (req, res) => {
 
 // ดึงข้อมูลจากตาราง recipes
 app.get('/recipes', (req, res) => {
-  const sql = 'SELECT * FROM recipes';
-  db.query(sql, (err, results) => {
+  const category = req.query.category_id; // รับค่าพารามิเตอร์ category_id จาก query string
+
+  let sql = 'SELECT * FROM recipes';
+  const params = [];
+
+  if (category) {
+    sql += ' WHERE category_id = ?'; // กรองตาม category_id หรือปรับเป็นชื่อคอลัมน์ที่ใช้จริง
+    params.push(category);
+  }
+
+  db.query(sql, params, (err, results) => {
     if (err) {
-      console.error('Error getting recipes:', err);
-      return res.status(500).send('Server error');
+      console.error('Database query error:', err);
+      return res.status(500).json({ error: 'Database query failed' });
     }
-    res.json(results);
+
+    if (results.length === 0) {
+      return res.status(404).json({ error: 'No recipes found for this category' });
+    }
+
+    res.json(results); // ส่งข้อมูลเมนูที่ถูกกรองกลับไปยัง client
   });
 });
+
+
 
 // ดึงข้อมูลจากตาราง categories
 app.get('/categories', (req, res) => {
@@ -80,13 +96,24 @@ app.get('/ingredients', (req, res) => {
   });
 });
 
-app.get('/categories', (req, res, next) => {
-  connection.query('SELECT DISTINCT ingredient_type FROM ingredients', (err, results) => {
-    if (err) return res.status(500).json({ error: err.message });
-    const categories = results.map(result => result.ingredient_category);
-    res.json(categories);
+app.get('/user_ingredients', (req, res) => {
+  const userId = req.query.userId; // สมมติว่า userId คาดหวังว่ามาจาก query parameters
+
+  if (!userId) {
+    return res.status(400).json({ error: 'User ID is required' });
+  }
+
+  const sql = 'SELECT ingredient_id FROM user_refrigerator WHERE user_id = ?';
+  db.query(sql, [userId], (err, results) => {
+    if (err) {
+      console.error('Database query error:', err);
+      return res.status(500).json({ error: 'Database query failed' });
+    }
+
+    res.json(results);
   });
 });
+
 
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);

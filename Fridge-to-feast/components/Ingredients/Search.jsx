@@ -4,7 +4,7 @@ import { Colors } from '@/constants/Colors';
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 import { useNavigation } from '@react-navigation/native';
 
-export default function Search() {
+export default function SearchBar() {
     const navigation = useNavigation();
     const [searchTerm, setSearchTerm] = useState('');
     const [filteredItems, setFilteredItems] = useState(items);
