@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, Image, Pressable } from 'react-native';
 import axios from 'axios';
+import { useRouter } from 'expo-router';
 
 export default function Ingredients() {
-
     const [ingredients, setIngredients] = useState([]);
+    const router = useRouter();
+
     useEffect(() => {
         const fetchIngredients = async () => {
             try {
@@ -18,8 +20,22 @@ export default function Ingredients() {
         fetchIngredients();
     }, []);
 
+    const handleIngredientPress = (ingredient) => {
+        router.push({
+            pathname: '/ingredientdetail/[ingre]',
+            params: {
+                recipe_name: ingredient.ingredient_name,
+                image_path: ingredient.ingredient_image,
+                recipe_id: ingredient.ingredient_id.toString()
+            }
+        });
+    };
+
     const renderItem = ({ item }) => (
-        <Pressable style={styles.ingredientContainer}>
+        <Pressable 
+            style={styles.ingredientContainer}
+            onPress={() => handleIngredientPress(item)}
+        >
             {item.ingredient_image && <Image source={{ uri: item.ingredient_image }} style={styles.image} />}
             {item.ingredient_name && <Text style={styles.ingredientName}>{item.ingredient_name}</Text>}
         </Pressable>

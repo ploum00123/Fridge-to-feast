@@ -6,6 +6,7 @@ import Search from '@/components/Ingredients/Search';
 import Ingredients from '@/components/Ingredients/IngredientsList';
 import IngredientsCategory from '@/components/Ingredients/IngredientCate';
 import { useRouter } from 'expo-router';
+import CookMethod from '@/components/Ingredients/CookMethod';
 
 const IngredientsScreen = () => {
   const { user } = useUser();
@@ -39,6 +40,7 @@ const IngredientsScreen = () => {
           <View>
             <Search />
             <IngredientsCategory />
+            <CookMethod />
             <Ingredients />
           </View>
         }

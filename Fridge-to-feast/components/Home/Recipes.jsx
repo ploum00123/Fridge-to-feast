@@ -1,140 +1,191 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Image, Pressable } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Image, Pressable, ActivityIndicator } from 'react-native';
 import axios from 'axios';
 import { useRouter } from 'expo-router';
+import { useUser } from '@clerk/clerk-expo';
 
 export default function Recipes() {
-    const [recipes, setRecipes] = useState([]);
-    const [ingredients, setIngredients] = useState({});
-    const router = useRouter(); 
+  const [recipes, setRecipes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [userIngredients, setUserIngredients] = useState([]);
+  const [userCookingMethods, setUserCookingMethods] = useState([]);
+  const [ingredientsMap, setIngredientsMap] = useState({});
+  const router = useRouter();
+  const { user } = useUser();
 
-    useEffect(() => {
-        const fetchRecipes = async () => {
-            try {
-                const response = await axios.get('http://192.168.1.253:3000/recipes');
-                setRecipes(response.data);
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      setError(null);
 
-                // Fetch ingredients for each recipe
-                await Promise.all(
-                    response.data.map(async (recipe) => {
-                        const ingredientsResponse = await axios.get(`http://192.168.1.253:3000/recipe_ingredients/?recipe_id=${recipe.recipe_id}`);
-                        setIngredients(prev => ({
-                            ...prev,
-                            [recipe.recipe_id]: ingredientsResponse.data
-                        }));
-                    })
-                );
-            } catch (error) {
-                console.error(error);
-            }
-        };
+      try {
+        if (user) {
+          // Fetch recipes
+          const recipesResponse = await axios.get('http://192.168.1.253:3000/recipes');
+          const fetchedRecipes = recipesResponse.data;
 
-        fetchRecipes();
-    }, []);
+          // Fetch ingredients for each recipe
+          const ingredientsPromises = fetchedRecipes.map(async (recipe) => {
+            const ingredientsResponse = await axios.get(`http://192.168.1.253:3000/recipe_ingredients/?recipe_id=${recipe.recipe_id}`);
+            return { recipe_id: recipe.recipe_id, ingredients: ingredientsResponse.data };
+          });
 
-    const formatIngredients = (ingredients = []) => {
-        const chunkSize = 5;
-        const chunks = [];
-        for (let i = 0; i < ingredients.length; i += chunkSize) {
-            chunks.push(ingredients.slice(i, i + chunkSize).map(ing => ing.ingredient_name).join(', '));
+          const ingredientsArray = await Promise.all(ingredientsPromises);
+          const ingredientsObject = ingredientsArray.reduce((acc, curr) => {
+            acc[curr.recipe_id] = curr.ingredients;
+            return acc;
+          }, {});
+
+          setIngredientsMap(ingredientsObject);
+          setRecipes(fetchedRecipes);
+
+          // Fetch user's ingredients
+          const userIngredientsResponse = await axios.get(`http://192.168.1.253:3000/user_ingredients/${user.id}`);
+          setUserIngredients(userIngredientsResponse.data);
+
+          // Fetch user's cooking methods
+          const userCookingMethodsResponse = await axios.get(`http://192.168.1.253:3000/user_cookmethods/${user.id}`);
+          setUserCookingMethods(userCookingMethodsResponse.data.map(method => method.cooking_method_id));
         }
-        return chunks;
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        setError('Failed to fetch data. Please try again.');
+      } finally {
+        setLoading(false);
+      }
     };
 
-    const renderItem = ({ item }) => (
-        <Pressable 
-            style={styles.recipeContainer}
-            onPress={() => router.push({
-                pathname: `/menudetail/${item.recipe_id}`,
-                params: { 
-                    recipe_id: item.recipe_id, 
-                    recipe_name: item.recipe_name, 
-                    ingredients: formatIngredients(ingredients[item.recipe_id] || []).join(', '), 
-                    image_path: item.image_path, 
-                    instructions: item.instructions, 
-                    cooking_method: item.cooking_method 
-                }
-            })}
-        >
-            {item.image_path && <Image source={{ uri: item.image_path }} style={styles.image} />}
-            {item.recipe_name && <Text style={styles.recipeName}>{item.recipe_name}</Text>}
-        </Pressable>
-    );
+    fetchData();
+  }, [user]);
 
-    const chunkArray = (array, size) => {
-        const chunkedArr = [];
-        for (let i = 0; i < array.length; i += size) {
-            chunkedArr.push(array.slice(i, i + size));
-        }
-        return chunkedArr;
-    };
-
-    const chunkedData = chunkArray(recipes, 2);
+  const renderItem = ({ item }) => {
+    const isComplete = item.matched_ingredients_count === item.total_ingredients && userCookingMethods.includes(item.cooking_method_id);
+    const userIngredientNames = userIngredients.map(ing => ing.ingredient_name);
+    const missingEssentialIngredients = ingredientsMap[item.recipe_id]?.filter(ingredient => !userIngredientNames.includes(ingredient.ingredient_name)) || [];
 
     return (
-        <View>
-            <Text style={styles.heading}>Recipes</Text>
-            <FlatList
-                data={chunkedData}
-                renderItem={({ item }) => (
-                    <View style={styles.row}>
-                        {item.map((recipe) => (
-                            <View key={recipe.recipe_id} style={styles.column}>
-                                {renderItem({ item: recipe })}
-                            </View>
-                        ))}
-                        {item.length === 1 && <View style={[styles.column, styles.emptyColumn]} />}
-                    </View>
-                )}
-                keyExtractor={(item, index) => item[0].recipe_id.toString()}
-                contentContainerStyle={styles.contentContainer}
-                showsVerticalScrollIndicator={false}
-            />
+      <Pressable
+        style={[
+          styles.recipeContainer,
+          isComplete ? styles.completeRecipe : styles.incompleteRecipe
+        ]}
+        onPress={() => router.push({
+          pathname: `/menudetail/${item.recipe_id}`,
+          params: {
+            recipe_id: item.recipe_id,
+            recipe_name: item.recipe_name,
+            ingredients: item.required_ingredients,
+            image_path: item.image_path,
+            instructions: item.instructions,
+            cooking_method: item.cooking_method
+          }
+        })}
+      >
+        <Image source={{ uri: item.image_path }} style={styles.image} />
+        <View style={styles.infoContainer}>
+          <Text style={styles.recipeName} numberOfLines={2}>{item.recipe_name}</Text>
+          {missingEssentialIngredients.length > 0 && (
+            <Text style={styles.missingIngredients}>
+              ขาดวัตถุดิบหลัก: {missingEssentialIngredients.map(ing => ing.ingredient_name).join(', ')}
+            </Text>
+          )}
+          <Text style={styles.ingredientCount}>
+            วัตถุดิบที่ตรงกัน: {item.matched_ingredients_count}/{item.total_ingredients}
+          </Text>
         </View>
+      </Pressable>
     );
+  };
+
+  if (loading) {
+    return <ActivityIndicator size="large" color="#0000ff" />;
+  }
+
+  if (error) {
+    return <Text style={styles.errorText}>{error}</Text>;
+  }
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.heading}>Recommended Recipes</Text>
+      {recipes.length > 0 ? (
+        <FlatList
+          data={recipes}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.recipe_id.toString()}
+          contentContainerStyle={styles.contentContainer}
+          numColumns={2}
+          columnWrapperStyle={styles.row}
+        />
+      ) : (
+        <Text style={styles.noRecipesText}>No recipes available</Text>
+      )}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        padding: 11,
-    },
-    heading: {
-        fontSize: 30,
-        fontWeight: 'bold',
-        marginBottom: 16,
-        marginTop: 16,
-    },
-    row: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: -5,
-    },
-    column: {
-        flex: 1,
-        paddingHorizontal: 4,
-    },
-    emptyColumn: {
-        flex: 1,
-    },
-    recipeContainer: {
-        backgroundColor: '#f9f9f9',
-        borderRadius: 4,
-        marginBottom: 16,
-        borderColor: '#000',
-        borderWidth: 1,
-    },
-    image: {
-        width: '100%',
-        height: 200,
-    },
-    recipeName: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        padding: 8,
-        textAlign: 'center',
-    },
-    contentContainer: {
-        paddingBottom: 20,
-    },
+  container: {
+    flex: 1,
+    padding: 10,
+  },
+  heading: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 16,
+    marginTop: 16,
+  },
+  row: {
+    justifyContent: 'space-between',
+  },
+  recipeContainer: {
+    backgroundColor: '#f9f9f9',
+    borderRadius: 8,
+    marginBottom: 16,
+    width: '48%',
+    overflow: 'hidden',
+  },
+  completeRecipe: {
+    borderColor: '#000',
+    borderWidth: 2,
+  },
+  incompleteRecipe: {
+    borderColor: '#ccc',
+    borderWidth: 2,
+  },
+  image: {
+    width: '100%',
+    height: 120,
+    resizeMode: 'cover',
+  },
+  infoContainer: {
+    padding: 8,
+  },
+  recipeName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  missingIngredients: {
+    fontSize: 12,
+    color: 'red',
+    marginBottom: 2,
+  },
+  ingredientCount: {
+    fontSize: 12,
+    color: '#444',
+  },
+  contentContainer: {
+    paddingBottom: 20,
+  },
+  errorText: {
+    color: 'red',
+    textAlign: 'center',
+    marginTop: 20,
+  },
+  noRecipesText: {
+    textAlign: 'center',
+    marginTop: 20,
+  },
 });

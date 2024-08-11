@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useState } from 'react';
 import { View, Text, TextInput, StyleSheet, FlatList, Pressable, Image } from 'react-native';
-import { useLocalSearchParams, useNavigation } from 'expo-router';
+import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 import { Colors } from '@/constants/Colors';
 
@@ -10,6 +10,7 @@ export default function SearchPage() {
   const parsedIngredients = JSON.parse(ingredients) || [];
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredIngredients, setFilteredIngredients] = useState(parsedIngredients);
+  const router = useRouter();
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -30,7 +31,17 @@ export default function SearchPage() {
   };
 
   const renderItem = ({ item }) => (
-    <Pressable style={styles.ingredientContainer}>
+    <Pressable 
+      style={styles.ingredientContainer} 
+      onPress={() => router.push({
+        pathname: `/ingredientdetail/${item.ingredient_id}`,
+        params: { 
+            recipe_id: item.ingredient_id, 
+            recipe_name: item.ingredient_name, 
+            image_path: item.ingredient_image, 
+        }
+      })}
+    >
       <Image source={{ uri: item.ingredient_image }} style={styles.image} />
       <Text style={styles.ingredientName}>{item.ingredient_name}</Text>
     </Pressable>

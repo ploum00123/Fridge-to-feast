@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, FlatList } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, StyleSheet, SafeAreaView, FlatList } from 'react-native';
 import { useUser } from '@clerk/clerk-expo';
 import axios from 'axios';
 import Recipes from '@/components/Home/Recipes';
@@ -8,10 +8,9 @@ import Category from '@/components/Home/Category';
 
 const HomeScreen = () => {
   const { user } = useUser();
-  const [isUserIdSent, setIsUserIdSent] = useState(false); // สถานะการส่ง userId
 
   useEffect(() => {
-    if (user && !isUserIdSent) {
+    if (user) {
       sendUserIdToServer();
     }
   }, [user]);
@@ -22,23 +21,30 @@ const HomeScreen = () => {
         userId: user.id,
       });
       console.log('User ID sent to server');
-      setIsUserIdSent(true); // ตั้งสถานะว่าการส่งสำเร็จแล้ว
     } catch (error) {
       console.error('Error sending User ID to server:', error);
     }
   };
 
+  const renderHeader = () => (
+    <>
+      <Header />
+      <View style={styles.contentWrapper}>
+        <Category />
+      </View>
+    </>
+  );
+
   return (
-    <FlatList
-      ListHeaderComponent={
-        <View>
-          <Header />
-          <Category />
-          <Recipes />
-        </View>
-      }
-      contentContainerStyle={styles.contentContainer}
-    />
+    <SafeAreaView style={styles.container}>
+      <FlatList
+        data={[]} // Empty data to prevent FlatList from rendering items (only used for structure)
+        ListHeaderComponent={renderHeader}
+        renderItem={null} // No items to render
+        ListFooterComponent={<Recipes />} // Use Recipes as the footer or another FlatList
+        contentContainerStyle={styles.scrollViewContent}
+      />
+    </SafeAreaView>
   );
 };
 
@@ -47,44 +53,12 @@ export default HomeScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 11,
+    backgroundColor: '#f0f0f0',
   },
-  heading: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 16,
-    marginTop: 16,
+  scrollViewContent: {
+    flexGrow: 1,
   },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: -5,
-  },
-  column: {
-    flex: 1,
-    paddingHorizontal: 4,
-  },
-  emptyColumn: {
-    flex: 1,
-  },
-  recipeContainer: {
-    backgroundColor: '#f9f9f9',
-    borderRadius: 4,
-    marginBottom: 16,
-    borderColor: '#000',
-    borderWidth: 1,
-  },
-  image: {
-    width: '100%',
-    height: 150,
-  },
-  recipeName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    padding: 8,
-    textAlign: 'center',
-  },
-  contentContainer: {
-    paddingBottom: 20,
+  contentWrapper: {
+    padding: 16,
   },
 });

@@ -24,7 +24,7 @@ export default function IngredientsListByCategory() {
             setLoading(true);
             const response = await fetch(`http://192.168.1.253:3000/ingredients_by_category/?category_name=${category_name}`);
             const data = await response.json();
-            console.log(data);
+            // console.log(data);
             setIngredientsList(data);
         } catch (error) {
             console.error('Error fetching menu list:', error);

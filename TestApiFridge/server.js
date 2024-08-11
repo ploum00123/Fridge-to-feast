@@ -212,6 +212,265 @@ app.get('/user_ingredients/:user_id', (req, res) => {
   });
 });
 
+app.delete('/delete_ingredient', (req, res) => {
+  const { user_id, ingredient_id } = req.body;
+
+  if (!user_id || !ingredient_id) {
+    return res.status(400).json({ error: 'User ID and Ingredient ID are required' });
+  }
+
+  const sql = 'DELETE FROM user_refrigerator WHERE user_id = ? AND ingredient_id = ?';
+  db.query(sql, [user_id, ingredient_id], (err, result) => {
+    if (err) {
+      console.error('Error deleting ingredient from user refrigerator:', err);
+      return res.status(500).json({ error: 'Failed to delete ingredient' });
+    }
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Ingredient not found in user\'s refrigerator' });
+    }
+    
+    res.json({ message: 'Ingredient deleted successfully' });
+  });
+});
+
+// Route to fetch all cook methods
+app.get('/cook_methods', (req, res) => {
+  const sql = 'SELECT * FROM cookmethod_category';
+  db.query(sql, (err, results) => {
+    if (err) {
+      console.error('Error getting cooking methods:', err);
+      return res.status(500).send('Server error');
+    }
+    res.json(results);
+  });
+});
+
+app.post('/add_user_cookmethod', (req, res) => {
+  const { user_id, cooking_method_id, preference_level } = req.body;
+
+  if (!user_id || !cooking_method_id || preference_level === undefined) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  // First, check if the record already exists
+  const checkSql = 'SELECT * FROM user_cookmethod WHERE user_id = ? AND cooking_method_id = ?';
+  db.query(checkSql, [user_id, cooking_method_id], (checkErr, checkResult) => {
+    if (checkErr) {
+      console.error('Error checking existing user cook method:', checkErr);
+      return res.status(500).json({ error: 'Failed to check existing user cook method' });
+    }
+
+    let sql, params, successMessage;
+
+    if (checkResult.length > 0) {
+      // Update existing record
+      sql = 'UPDATE user_cookmethod SET preference_level = ? WHERE user_id = ? AND cooking_method_id = ?';
+      params = [preference_level, user_id, cooking_method_id];
+      successMessage = 'User cook method updated successfully';
+    } else {
+      // Insert new record
+      sql = 'INSERT INTO user_cookmethod (user_id, cooking_method_id, preference_level) VALUES (?, ?, ?)';
+      params = [user_id, cooking_method_id, preference_level];
+      successMessage = 'User cook method added successfully';
+    }
+
+    db.query(sql, params, (err, result) => {
+      if (err) {
+        console.error('Error adding/updating user cook method:', err);
+        return res.status(500).json({ error: 'Failed to add/update user cook method' });
+      }
+      res.json({ message: successMessage, id: result.insertId || checkResult[0].id });
+    });
+  });
+});
+
+app.get('/api/recipes', async (req, res) => {
+  try {
+    const userId = req.query.userId;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+
+    console.log('Fetching recipes for user:', userId);
+
+    // Fetch user's ingredients
+    const [userIngredients] = await db.promise().query(
+      'SELECT ingredient_id FROM user_refrigerator WHERE user_id = ?',
+      [userId]
+    );
+    console.log('User ingredients:', userIngredients);
+
+    const userIngredientIds = userIngredients.map(row => row.ingredient_id);
+
+    // Fetch user's cooking methods
+    const [userCookMethods] = await db.promise().query(
+      'SELECT cooking_method_id FROM user_cookmethod WHERE user_id = ?',
+      [userId]
+    );
+    console.log('User cooking methods:', userCookMethods);
+
+    const userCookMethodIds = userCookMethods.map(row => row.cooking_method_id);
+
+    if (userIngredientIds.length === 0 || userCookMethodIds.length === 0) {
+      console.log('No user ingredients or cooking methods found');
+      return res.json([]);
+    }
+
+    // Fetch recipes
+    const [recipes] = await db.promise().query(`
+      SELECT 
+        r.recipe_id, 
+        r.recipe_name, 
+        r.cooking_method_id,
+        r.image_path,
+        GROUP_CONCAT(i.ingredient_name) AS required_ingredients,
+        (SELECT COUNT(*) 
+         FROM recipe_ingredients ri2 
+         WHERE ri2.recipe_id = r.recipe_id AND ri2.ingredient_id IN (${userIngredientIds.join(',')})) 
+         AS matched_ingredients_count,
+        (SELECT COUNT(*) 
+         FROM recipe_ingredients ri3
+         WHERE ri3.recipe_id = r.recipe_id) 
+         AS total_ingredients,
+        (SELECT GROUP_CONCAT(i2.ingredient_name) 
+         FROM recipe_ingredients ri4
+         JOIN ingredients i2 ON ri4.ingredient_id = i2.ingredient_id
+         WHERE ri4.recipe_id = r.recipe_id AND ri4.is_essential = TRUE) 
+         AS essential_ingredients
+      FROM recipes r
+      JOIN recipe_ingredients ri ON r.recipe_id = ri.recipe_id
+      JOIN ingredients i ON ri.ingredient_id = i.ingredient_id
+      WHERE r.cooking_method_id IN (${userCookMethodIds.join(',')})
+      GROUP BY r.recipe_id, r.recipe_name, r.cooking_method_id, r.image_path
+    `);
+
+    console.log('Fetched recipes:', recipes);
+
+    // Process recipes
+    const processedRecipes = recipes.map(recipe => {
+      const requiredIngredients = recipe.required_ingredients.split(',');
+      const essentialIngredients = recipe.essential_ingredients ? recipe.essential_ingredients.split(',') : [];
+      const missingIngredients = requiredIngredients.filter(ingredient => 
+        !userIngredientIds.includes(requiredIngredients.indexOf(ingredient) + 1)
+      );
+      return {
+        ...recipe,
+        essentialIngredients,
+        missing_ingredients: missingIngredients,
+        missing_ingredients_count: missingIngredients.length
+      };
+    });
+
+    // Sort recipes
+    processedRecipes.sort((a, b) => {
+      const aIsExactMatch = a.matched_ingredients_count === a.total_ingredients && userCookMethodIds.includes(a.cooking_method_id);
+      const bIsExactMatch = b.matched_ingredients_count === b.total_ingredients && userCookMethodIds.includes(b.cooking_method_id);
+      if (aIsExactMatch && !bIsExactMatch) return -1;
+      if (!aIsExactMatch && bIsExactMatch) return 1;
+      return b.matched_ingredients_count - a.matched_ingredients_count;
+    });
+
+    console.log('Sending processed recipes:', processedRecipes);
+    res.json(processedRecipes);
+  } catch (err) {
+    console.error('Error fetching recipes:', err);
+    res.status(500).json({ error: 'Internal Server Error', details: err.message });
+  }
+});
+
+app.get('/user_cookmethods/:user_id', (req, res) => {
+  const userId = req.params.user_id;
+  const sql = 'SELECT cooking_method_id FROM user_cookmethod WHERE user_id = ?';
+  db.query(sql, [userId], (err, results) => {
+    if (err) {
+      console.error('Error getting user cooking methods:', err);
+      return res.status(500).json({ error: 'Failed to get user cooking methods' });
+    }
+    res.json(results);
+  });
+});
+
+
+// เพิ่ม endpoint นี้ในไฟล์ server.js ของคุณ
+
+app.get('/api/test/recipes', (req, res) => {
+  const userId = req.query.userId;
+
+  if (!userId) {
+    return res.status(400).json({ error: 'User ID is required' });
+  }
+
+  // จำลองข้อมูลวัตถุดิบของผู้ใช้
+  const mockUserIngredients = [
+    { ingredient_id: 1 },
+    { ingredient_id: 2 },
+    { ingredient_id: 3 }
+  ];
+
+  // จำลองข้อมูลวิธีการทำอาหารที่ผู้ใช้ชอบ
+  const mockUserCookMethods = [
+    { cooking_method_id: 1 },
+    { cooking_method_id: 2 }
+  ];
+
+  // จำลองข้อมูลสูตรอาหาร
+  const mockRecipes = [
+    {
+      recipe_id: 1,
+      recipe_name: 'สปาเก็ตตี้ซอสมะเขือเทศ',
+      cooking_method_id: 1,
+      image_path: 'http://example.com/spaghetti.jpg',
+      required_ingredients: 'เส้นสปาเก็ตตี้,มะเขือเทศ,กระเทียม',
+      matched_ingredients_count: 2,
+      total_ingredients: 3
+    },
+    {
+      recipe_id: 2,
+      recipe_name: 'สลัดผัก',
+      cooking_method_id: 2,
+      image_path: 'http://example.com/salad.jpg',
+      required_ingredients: 'ผักสลัด,มะเขือเทศ,แตงกวา,น้ำสลัด',
+      matched_ingredients_count: 1,
+      total_ingredients: 4
+    },
+    {
+      recipe_id: 3,
+      recipe_name: 'ข้าวผัดไข่',
+      cooking_method_id: 1,
+      image_path: 'http://example.com/fried-rice.jpg',
+      required_ingredients: 'ข้าว,ไข่,ต้นหอม',
+      matched_ingredients_count: 3,
+      total_ingredients: 3
+    }
+  ];
+
+  // เพิ่มข้อมูลวัตถุดิบที่ขาดและจำนวนที่ขาด
+  mockRecipes.forEach(recipe => {
+    const requiredIngredients = recipe.required_ingredients.split(',');
+    const missingIngredients = requiredIngredients.filter(ingredient => 
+      !mockUserIngredients.some(userIngredient => userIngredient.ingredient_id === requiredIngredients.indexOf(ingredient) + 1)
+    );
+    recipe.missing_ingredients = missingIngredients;
+    recipe.missing_ingredients_count = missingIngredients.length;
+  });
+
+  // เรียงลำดับสูตรอาหารตามเกณฑ์
+  mockRecipes.sort((a, b) => {
+    // 1. นำเมนูที่ตรงกับวัตถุดิบและวิธีการทำทั้งหมดขึ้นก่อน
+    const aIsExactMatch = a.matched_ingredients_count === a.total_ingredients;
+    const bIsExactMatch = b.matched_ingredients_count === b.total_ingredients;
+    if (aIsExactMatch && !bIsExactMatch) return -1;
+    if (!aIsExactMatch && bIsExactMatch) return 1;
+
+    // 2. เรียงตามจำนวนวัตถุดิบที่ตรงกัน โดยมากไปน้อย
+    return b.matched_ingredients_count - a.matched_ingredients_count;
+  });
+
+  res.json(mockRecipes);
+});
+
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
 });
