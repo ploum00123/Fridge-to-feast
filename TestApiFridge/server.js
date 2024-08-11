@@ -2,6 +2,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const mysql = require('mysql');
 const cors = require('cors'); // Added for CORS
+const util = require('util');
 
 const app = express();
 const port = 3000;
@@ -21,6 +22,8 @@ db.connect(err => {
   if (err) throw err;
   console.log('Connected to database');
 });
+
+db.query = util.promisify(db.query);
 
 // Route to save userId
 app.post('/saveUserId', (req, res) => {
@@ -246,20 +249,16 @@ app.get('/cook_methods', (req, res) => {
   });
 });
 
-app.post('/add_user_cookmethod', (req, res) => {
+app.post('/add_user_cookmethod', async (req, res) => {
   const { user_id, cooking_method_id, preference_level } = req.body;
 
   if (!user_id || !cooking_method_id || preference_level === undefined) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
-  // First, check if the record already exists
-  const checkSql = 'SELECT * FROM user_cookmethod WHERE user_id = ? AND cooking_method_id = ?';
-  db.query(checkSql, [user_id, cooking_method_id], (checkErr, checkResult) => {
-    if (checkErr) {
-      console.error('Error checking existing user cook method:', checkErr);
-      return res.status(500).json({ error: 'Failed to check existing user cook method' });
-    }
+  try {
+    // First, check if the record already exists
+    const checkResult = await db.query('SELECT * FROM user_cookmethod WHERE user_id = ? AND cooking_method_id = ?', [user_id, cooking_method_id]);
 
     let sql, params, successMessage;
 
@@ -275,14 +274,16 @@ app.post('/add_user_cookmethod', (req, res) => {
       successMessage = 'User cook method added successfully';
     }
 
-    db.query(sql, params, (err, result) => {
-      if (err) {
-        console.error('Error adding/updating user cook method:', err);
-        return res.status(500).json({ error: 'Failed to add/update user cook method' });
-      }
-      res.json({ message: successMessage, id: result.insertId || checkResult[0].id });
+    const result = await db.query(sql, params);
+    
+    res.json({ 
+      message: successMessage, 
+      id: result.insertId || (checkResult[0] && checkResult[0].id) || null 
     });
-  });
+  } catch (err) {
+    console.error('Error adding/updating user cook method:', err);
+    res.status(500).json({ error: 'Failed to add/update user cook method', details: err.message });
+  }
 });
 
 app.get('/api/recipes', async (req, res) => {
@@ -296,21 +297,11 @@ app.get('/api/recipes', async (req, res) => {
     console.log('Fetching recipes for user:', userId);
 
     // Fetch user's ingredients
-    const [userIngredients] = await db.promise().query(
-      'SELECT ingredient_id FROM user_refrigerator WHERE user_id = ?',
-      [userId]
-    );
-    console.log('User ingredients:', userIngredients);
-
+    const userIngredients = await db.query('SELECT ingredient_id FROM user_refrigerator WHERE user_id = ?', [userId]);
     const userIngredientIds = userIngredients.map(row => row.ingredient_id);
 
     // Fetch user's cooking methods
-    const [userCookMethods] = await db.promise().query(
-      'SELECT cooking_method_id FROM user_cookmethod WHERE user_id = ?',
-      [userId]
-    );
-    console.log('User cooking methods:', userCookMethods);
-
+    const userCookMethods = await db.query('SELECT cooking_method_id FROM user_cookmethod WHERE user_id = ?', [userId]);
     const userCookMethodIds = userCookMethods.map(row => row.cooking_method_id);
 
     if (userIngredientIds.length === 0 || userCookMethodIds.length === 0) {
@@ -319,57 +310,58 @@ app.get('/api/recipes', async (req, res) => {
     }
 
     // Fetch recipes
-    const [recipes] = await db.promise().query(`
+    const recipes = await db.query(`
       SELECT 
         r.recipe_id, 
         r.recipe_name, 
         r.cooking_method_id,
         r.image_path,
-        GROUP_CONCAT(i.ingredient_name) AS required_ingredients,
+        GROUP_CONCAT(DISTINCT i.ingredient_name) AS required_ingredients,
         (SELECT COUNT(*) 
          FROM recipe_ingredients ri2 
-         WHERE ri2.recipe_id = r.recipe_id AND ri2.ingredient_id IN (${userIngredientIds.join(',')})) 
-         AS matched_ingredients_count,
+         JOIN ingredients i2 ON ri2.ingredient_id = i2.ingredient_id
+         WHERE ri2.recipe_id = r.recipe_id AND ri2.ingredient_id IN (?) AND ri2.is_essential = TRUE) 
+         AS matched_essential_ingredients_count,
         (SELECT COUNT(*) 
          FROM recipe_ingredients ri3
-         WHERE ri3.recipe_id = r.recipe_id) 
-         AS total_ingredients,
+         WHERE ri3.recipe_id = r.recipe_id AND ri3.is_essential = TRUE) 
+         AS total_essential_ingredients,
         (SELECT GROUP_CONCAT(i2.ingredient_name) 
          FROM recipe_ingredients ri4
          JOIN ingredients i2 ON ri4.ingredient_id = i2.ingredient_id
          WHERE ri4.recipe_id = r.recipe_id AND ri4.is_essential = TRUE) 
-         AS essential_ingredients
+         AS essential_ingredients,
+        (SELECT GROUP_CONCAT(i3.ingredient_name)
+         FROM recipe_ingredients ri5
+         JOIN ingredients i3 ON ri5.ingredient_id = i3.ingredient_id
+         WHERE ri5.recipe_id = r.recipe_id AND ri5.is_essential = TRUE AND ri5.ingredient_id NOT IN (?))
+         AS missing_essential_ingredients
       FROM recipes r
       JOIN recipe_ingredients ri ON r.recipe_id = ri.recipe_id
       JOIN ingredients i ON ri.ingredient_id = i.ingredient_id
-      WHERE r.cooking_method_id IN (${userCookMethodIds.join(',')})
+      WHERE r.cooking_method_id IN (?)
       GROUP BY r.recipe_id, r.recipe_name, r.cooking_method_id, r.image_path
-    `);
-
-    console.log('Fetched recipes:', recipes);
+    `, [userIngredientIds, userIngredientIds, userCookMethodIds]);
 
     // Process recipes
     const processedRecipes = recipes.map(recipe => {
-      const requiredIngredients = recipe.required_ingredients.split(',');
       const essentialIngredients = recipe.essential_ingredients ? recipe.essential_ingredients.split(',') : [];
-      const missingIngredients = requiredIngredients.filter(ingredient => 
-        !userIngredientIds.includes(requiredIngredients.indexOf(ingredient) + 1)
-      );
+      const missingEssentialIngredients = recipe.missing_essential_ingredients ? recipe.missing_essential_ingredients.split(',') : [];
       return {
         ...recipe,
         essentialIngredients,
-        missing_ingredients: missingIngredients,
-        missing_ingredients_count: missingIngredients.length
+        missing_essential_ingredients: missingEssentialIngredients,
+        missing_essential_ingredients_count: missingEssentialIngredients.length
       };
     });
 
     // Sort recipes
     processedRecipes.sort((a, b) => {
-      const aIsExactMatch = a.matched_ingredients_count === a.total_ingredients && userCookMethodIds.includes(a.cooking_method_id);
-      const bIsExactMatch = b.matched_ingredients_count === b.total_ingredients && userCookMethodIds.includes(b.cooking_method_id);
+      const aIsExactMatch = a.matched_essential_ingredients_count === a.total_essential_ingredients && userCookMethodIds.includes(a.cooking_method_id);
+      const bIsExactMatch = b.matched_essential_ingredients_count === b.total_essential_ingredients && userCookMethodIds.includes(b.cooking_method_id);
       if (aIsExactMatch && !bIsExactMatch) return -1;
       if (!aIsExactMatch && bIsExactMatch) return 1;
-      return b.matched_ingredients_count - a.matched_ingredients_count;
+      return b.matched_essential_ingredients_count - a.matched_essential_ingredients_count;
     });
 
     console.log('Sending processed recipes:', processedRecipes);
@@ -392,6 +384,16 @@ app.get('/user_cookmethods/:user_id', (req, res) => {
   });
 });
 
+app.get('/cook_methods', (req, res) => {
+  const sql = 'SELECT * FROM cookmethod_category';
+  db.query(sql, (err, results) => {
+    if (err) {
+      console.error('Error getting cooking methods:', err);
+      return res.status(500).send('Server error');
+    }
+    res.json(results);
+  });
+});
 
 // เพิ่ม endpoint นี้ในไฟล์ server.js ของคุณ
 

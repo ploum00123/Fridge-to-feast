@@ -10,10 +10,8 @@ const HomeScreen = () => {
   const { user } = useUser();
 
   useEffect(() => {
-    if (user) {
       sendUserIdToServer();
-    }
-  }, [user]);
+  }, []);
 
   const sendUserIdToServer = async () => {
     try {

@@ -6,11 +6,11 @@ import { useUser } from '@clerk/clerk-expo';
 
 export default function Recipes() {
   const [recipes, setRecipes] = useState([]);
+  const [allRecipes, setAllRecipes] = useState([]);
+  const [ingredients, setIngredients] = useState({});
+  const [cookingMethods, setCookingMethods] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [userIngredients, setUserIngredients] = useState([]);
-  const [userCookingMethods, setUserCookingMethods] = useState([]);
-  const [ingredientsMap, setIngredientsMap] = useState({});
   const router = useRouter();
   const { user } = useUser();
 
@@ -18,36 +18,33 @@ export default function Recipes() {
     const fetchData = async () => {
       setLoading(true);
       setError(null);
-
       try {
-        if (user) {
-          // Fetch recipes
-          const recipesResponse = await axios.get('http://192.168.1.253:3000/recipes');
-          const fetchedRecipes = recipesResponse.data;
+        const [recommendedResponse, allRecipesResponse, cookingMethodsResponse] = await Promise.all([
+          axios.get(`http://192.168.1.253:3000/api/recipes?userId=${user.id}`),
+          axios.get('http://192.168.1.253:3000/recipes'),
+          axios.get('http://192.168.1.253:3000/cook_methods')
+        ]);
 
-          // Fetch ingredients for each recipe
-          const ingredientsPromises = fetchedRecipes.map(async (recipe) => {
-            const ingredientsResponse = await axios.get(`http://192.168.1.253:3000/recipe_ingredients/?recipe_id=${recipe.recipe_id}`);
-            return { recipe_id: recipe.recipe_id, ingredients: ingredientsResponse.data };
-          });
+        setRecipes(recommendedResponse.data);
+        setAllRecipes(allRecipesResponse.data);
 
-          const ingredientsArray = await Promise.all(ingredientsPromises);
-          const ingredientsObject = ingredientsArray.reduce((acc, curr) => {
-            acc[curr.recipe_id] = curr.ingredients;
-            return acc;
-          }, {});
+        // Create a mapping of cooking_method_id to cooking_method_name
+        const methodsMap = {};
+        cookingMethodsResponse.data.forEach(method => {
+          methodsMap[method.cooking_method_id] = method.cooking_method_name;
+        });
+        setCookingMethods(methodsMap);
 
-          setIngredientsMap(ingredientsObject);
-          setRecipes(fetchedRecipes);
-
-          // Fetch user's ingredients
-          const userIngredientsResponse = await axios.get(`http://192.168.1.253:3000/user_ingredients/${user.id}`);
-          setUserIngredients(userIngredientsResponse.data);
-
-          // Fetch user's cooking methods
-          const userCookingMethodsResponse = await axios.get(`http://192.168.1.253:3000/user_cookmethods/${user.id}`);
-          setUserCookingMethods(userCookingMethodsResponse.data.map(method => method.cooking_method_id));
-        }
+        // Fetch ingredients for each recipe
+        const ingredientsPromises = recommendedResponse.data.map(recipe =>
+          axios.get(`http://192.168.1.253:3000/recipe_ingredients/?recipe_id=${recipe.recipe_id}`)
+        );
+        const ingredientsResponses = await Promise.all(ingredientsPromises);
+        const ingredientsData = {};
+        ingredientsResponses.forEach((response, index) => {
+          ingredientsData[recommendedResponse.data[index].recipe_id] = response.data;
+        });
+        setIngredients(ingredientsData);
       } catch (error) {
         console.error('Error fetching data:', error);
         setError('Failed to fetch data. Please try again.');
@@ -56,13 +53,20 @@ export default function Recipes() {
       }
     };
 
-    fetchData();
+    if (user) {
+      fetchData();
+    }
   }, [user]);
 
+  const formatIngredients = (recipeIngredients) => {
+    return recipeIngredients.map(ing => ing.ingredient_name);
+  };
+
   const renderItem = ({ item }) => {
-    const isComplete = item.matched_ingredients_count === item.total_ingredients && userCookingMethods.includes(item.cooking_method_id);
-    const userIngredientNames = userIngredients.map(ing => ing.ingredient_name);
-    const missingEssentialIngredients = ingredientsMap[item.recipe_id]?.filter(ingredient => !userIngredientNames.includes(ingredient.ingredient_name)) || [];
+    const isComplete = item.matched_essential_ingredients_count === item.total_essential_ingredients;
+    const recipeIngredients = ingredients[item.recipe_id] || [];
+    const fullRecipeDetails = allRecipes.find(r => r.recipe_id === item.recipe_id) || {};
+    const cookingMethodName = cookingMethods[item.cooking_method_id] || 'Unknown';
 
     return (
       <Pressable
@@ -72,27 +76,28 @@ export default function Recipes() {
         ]}
         onPress={() => router.push({
           pathname: `/menudetail/${item.recipe_id}`,
-          params: {
-            recipe_id: item.recipe_id,
-            recipe_name: item.recipe_name,
-            ingredients: item.required_ingredients,
-            image_path: item.image_path,
-            instructions: item.instructions,
-            cooking_method: item.cooking_method
+          params: { 
+            recipe_id: item.recipe_id, 
+            recipe_name: item.recipe_name, 
+            ingredients: formatIngredients(recipeIngredients).join(', '), 
+            image_path: item.image_path, 
+            instructions: fullRecipeDetails.instructions, 
+            cooking_method: cookingMethodName
           }
         })}
       >
         <Image source={{ uri: item.image_path }} style={styles.image} />
         <View style={styles.infoContainer}>
           <Text style={styles.recipeName} numberOfLines={2}>{item.recipe_name}</Text>
-          {missingEssentialIngredients.length > 0 && (
+          <Text style={styles.ingredientCount}>
+            วัตถุดิบหลักที่มี: {item.matched_essential_ingredients_count}/{item.total_essential_ingredients}
+          </Text>
+          {!isComplete && item.missing_essential_ingredients && item.missing_essential_ingredients.length > 0 && (
             <Text style={styles.missingIngredients}>
-              ขาดวัตถุดิบหลัก: {missingEssentialIngredients.map(ing => ing.ingredient_name).join(', ')}
+              ขาดวัตถุดิบหลัก: {item.missing_essential_ingredients.join(', ')}
             </Text>
           )}
-          <Text style={styles.ingredientCount}>
-            วัตถุดิบที่ตรงกัน: {item.matched_ingredients_count}/{item.total_ingredients}
-          </Text>
+          <Text style={styles.cookingMethod}>วิธีทำ: {cookingMethodName}</Text>
         </View>
       </Pressable>
     );
@@ -108,7 +113,7 @@ export default function Recipes() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.heading}>Recommended Recipes</Text>
+      <Text style={styles.heading}>เมนูแนะนำ</Text>
       {recipes.length > 0 ? (
         <FlatList
           data={recipes}
@@ -119,11 +124,12 @@ export default function Recipes() {
           columnWrapperStyle={styles.row}
         />
       ) : (
-        <Text style={styles.noRecipesText}>No recipes available</Text>
+        <Text style={styles.noRecipesText}>ไม่พบเมนูอาหาร</Text>
       )}
     </View>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {
@@ -135,6 +141,26 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 16,
     marginTop: 16,
+  },
+  ingredientCount: {
+    fontSize: 12,
+    color: '#444',
+    marginBottom: 2,
+  },
+  cookingMethod: {
+    fontSize: 12,
+    color: '#444',
+    marginTop: 2,
+  },
+  missingIngredients: {
+    fontSize: 12,
+    color: 'red',
+    marginTop: 2,
+  },
+  completeIngredients: {
+    fontSize: 12,
+    color: 'green',
+    marginTop: 2,
   },
   row: {
     justifyContent: 'space-between',

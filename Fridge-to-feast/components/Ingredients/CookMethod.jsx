@@ -36,12 +36,12 @@ export default function CookMethod() {
     const handleConfirm = async () => {
         if (selectedMethod && sliderValue > 0) {
             try {
-                await axios.post('http://192.168.1.253:3000/add_user_cookmethod', {
+                const response = await axios.post('http://192.168.1.253:3000/add_user_cookmethod', {
                     user_id: user.id,
                     cooking_method_id: selectedMethod.cooking_method_id,
                     preference_level: sliderValue
                 });
-                alert('Cooking method preference saved!');
+                alert(response.data.message);
                 setSelectedMethod(null);
                 setSliderValue(0);
             } catch (error) {
