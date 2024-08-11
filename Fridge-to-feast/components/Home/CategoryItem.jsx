@@ -4,7 +4,7 @@ import { Colors } from '@/constants/Colors'
 
 export default function CategoryItem({ category, onCategoryPress }) {
   return (
-    <TouchableOpacity onPress={()=>onCategoryPress(category)} style={{ alignItems: 'center', marginBottom: 20 }}>
+    <TouchableOpacity onPress={() => onCategoryPress(category)} style={{ alignItems: 'center', marginBottom: 20 }}>
       <View style={{
         padding: 10,
         backgroundColor: Colors.ICON_BG,

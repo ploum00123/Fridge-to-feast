@@ -11,6 +11,7 @@ import CookMethod from '@/components/Ingredients/CookMethod';
 const IngredientsScreen = () => {
   const { user } = useUser();
   const router = useRouter();
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     sendUserIdToServer();
@@ -19,6 +20,7 @@ const IngredientsScreen = () => {
   const sendUserIdToServer = async () => {
     if (user) {
       try {
+        setLoading(true);
         await axios.post('http://192.168.1.253:3000/saveUserId', {
           userId: user.id,
         });
@@ -26,12 +28,23 @@ const IngredientsScreen = () => {
       } catch (error) {
         console.error('Error sending User ID to server:', error);
       }
+      finally {
+        setLoading(false);
+      }
     }
   };
 
   const navigateToAddIngredient = () => {
     router.push('/addingre/[addingre].js'); // นำทางไปยังหน้าที่ต้องการ
   };
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <Text>Loading...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -45,6 +58,8 @@ const IngredientsScreen = () => {
           </View>
         }
         contentContainerStyle={styles.contentContainer}
+        onRefresh={sendUserIdToServer}
+        refreshing={loading}
       />
       <TouchableOpacity
         style={styles.addButton}

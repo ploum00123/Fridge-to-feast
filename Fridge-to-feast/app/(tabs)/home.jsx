@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { View, StyleSheet, SafeAreaView, FlatList } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, StyleSheet, SafeAreaView, FlatList, Button } from 'react-native';
 import { useUser } from '@clerk/clerk-expo';
 import axios from 'axios';
 import Recipes from '@/components/Home/Recipes';
@@ -8,20 +8,10 @@ import Category from '@/components/Home/Category';
 
 const HomeScreen = () => {
   const { user } = useUser();
+  const [refreshTrigger, setRefreshTrigger] = useState(false);
 
-  useEffect(() => {
-      sendUserIdToServer();
-  }, []);
-
-  const sendUserIdToServer = async () => {
-    try {
-      await axios.post('http://192.168.1.253:3000/saveUserId', {
-        userId: user.id,
-      });
-      console.log('User ID sent to server');
-    } catch (error) {
-      console.error('Error sending User ID to server:', error);
-    }
+  const handleRefresh = () => {
+    setRefreshTrigger(prev => !prev);
   };
 
   const renderHeader = () => (
@@ -29,6 +19,7 @@ const HomeScreen = () => {
       <Header />
       <View style={styles.contentWrapper}>
         <Category />
+        <Button title="Refresh Recipes" onPress={handleRefresh} />
       </View>
     </>
   );
@@ -39,7 +30,7 @@ const HomeScreen = () => {
         data={[]} // Empty data to prevent FlatList from rendering items (only used for structure)
         ListHeaderComponent={renderHeader}
         renderItem={null} // No items to render
-        ListFooterComponent={<Recipes />} // Use Recipes as the footer or another FlatList
+        ListFooterComponent={<Recipes refreshTrigger={refreshTrigger} />} // Pass refreshTrigger to Recipes
         contentContainerStyle={styles.scrollViewContent}
       />
     </SafeAreaView>

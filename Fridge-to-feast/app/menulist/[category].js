@@ -2,6 +2,7 @@ import { View, Text, FlatList, ActivityIndicator } from 'react-native';
 import React, { useEffect, useState } from 'react';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 import MenuListCard from '@/components/MenuList/MenuListCard';
+import { useUser } from '@clerk/clerk-expo';
 
 export default function MenuListByCategory() {
     const navigation = useNavigation();
@@ -9,18 +10,18 @@ export default function MenuListByCategory() {
     const [menuList, setMenuList] = useState([]);
     const [ingredients, setIngredients] = useState({});
     const [loading, setLoading] = useState(true);
+    const { user } = useUser();
 
     useEffect(() => {
         navigation.setOptions({
             headerShown: true,
             headerTitle: category_name,
         });
-        if (category_id) {
+        if (category_id && user) {
             getMenuList();
         }
-    }, [category_id]);
+    }, [category_id, user]);
 
-    // ดึงข้อมูลจาก API มาแสดงตาราง menu โดยแสดงเฉพาะ category ที่เลือก
     const getMenuList = async () => {
         try {
             setLoading(true);
@@ -28,8 +29,8 @@ export default function MenuListByCategory() {
             const data = await response.json();
             console.log(data);
             setMenuList(data);
-            // ดึงข้อมูล ingredients ของแต่ละเมนู
-            await Promise.all(data.map(menu => getRecipeIngredients(menu.recipe_id)));
+            // ดึงข้อมูล ingredients และข้อมูลเพิ่มเติมของแต่ละเมนู
+            await Promise.all(data.map(menu => getRecipeDetails(menu.recipe_id)));
         } catch (error) {
             console.error(error);
         } finally {
@@ -37,10 +38,9 @@ export default function MenuListByCategory() {
         }
     };
 
-    // ดึงข้อมูล ingredients สำหรับ recipe แต่ละรายการ
-    const getRecipeIngredients = async (recipeId) => {
+    const getRecipeDetails = async (recipeId) => {
         try {
-            const response = await fetch(`http://192.168.1.253:3000/recipe_ingredients/?recipe_id=${recipeId}`);
+            const response = await fetch(`http://192.168.1.253:3000/recipe_details/?recipe_id=${recipeId}&user_id=${user.id}`);
             const data = await response.json();
             setIngredients(prev => ({ ...prev, [recipeId]: data }));
         } catch (error) {
@@ -65,14 +65,13 @@ export default function MenuListByCategory() {
                     refreshing={loading}
                     renderItem={({ item }) => (
                         <MenuListCard
-                            menu={item}
-                            ingredients={ingredients[item.recipe_id] || []}
+                            menu={{...item, ...ingredients[item.recipe_id]}}
                             key={item.recipe_id}
                         />
                     )}
                 />
             ) : (
-                <Text>No data found</Text>
+                <Text>No recipes found in this category</Text>
             )}
         </View>
     );

@@ -4,7 +4,7 @@ import axios from 'axios';
 import { useRouter } from 'expo-router';
 import { useUser } from '@clerk/clerk-expo';
 
-export default function Recipes() {
+export default function Recipes({ refreshTrigger }) {
   const [recipes, setRecipes] = useState([]);
   const [allRecipes, setAllRecipes] = useState([]);
   const [ingredients, setIngredients] = useState({});
@@ -14,49 +14,47 @@ export default function Recipes() {
   const router = useRouter();
   const { user } = useUser();
 
+  const fetchData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [recommendedResponse, allRecipesResponse, cookingMethodsResponse] = await Promise.all([
+        axios.get(`http://192.168.1.253:3000/api/recipes?userId=${user.id}`),
+        axios.get('http://192.168.1.253:3000/recipes'),
+        axios.get('http://192.168.1.253:3000/cook_methods')
+      ]);
+
+      setRecipes(recommendedResponse.data);
+      setAllRecipes(allRecipesResponse.data);
+
+      const methodsMap = {};
+      cookingMethodsResponse.data.forEach(method => {
+        methodsMap[method.cooking_method_id] = method.cooking_method_name;
+      });
+      setCookingMethods(methodsMap);
+
+      const ingredientsPromises = recommendedResponse.data.map(recipe =>
+        axios.get(`http://192.168.1.253:3000/recipe_ingredients/?recipe_id=${recipe.recipe_id}`)
+      );
+      const ingredientsResponses = await Promise.all(ingredientsPromises);
+      const ingredientsData = {};
+      ingredientsResponses.forEach((response, index) => {
+        ingredientsData[recommendedResponse.data[index].recipe_id] = response.data;
+      });
+      setIngredients(ingredientsData);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      setError('Failed to fetch data. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const [recommendedResponse, allRecipesResponse, cookingMethodsResponse] = await Promise.all([
-          axios.get(`http://192.168.1.253:3000/api/recipes?userId=${user.id}`),
-          axios.get('http://192.168.1.253:3000/recipes'),
-          axios.get('http://192.168.1.253:3000/cook_methods')
-        ]);
-
-        setRecipes(recommendedResponse.data);
-        setAllRecipes(allRecipesResponse.data);
-
-        // Create a mapping of cooking_method_id to cooking_method_name
-        const methodsMap = {};
-        cookingMethodsResponse.data.forEach(method => {
-          methodsMap[method.cooking_method_id] = method.cooking_method_name;
-        });
-        setCookingMethods(methodsMap);
-
-        // Fetch ingredients for each recipe
-        const ingredientsPromises = recommendedResponse.data.map(recipe =>
-          axios.get(`http://192.168.1.253:3000/recipe_ingredients/?recipe_id=${recipe.recipe_id}`)
-        );
-        const ingredientsResponses = await Promise.all(ingredientsPromises);
-        const ingredientsData = {};
-        ingredientsResponses.forEach((response, index) => {
-          ingredientsData[recommendedResponse.data[index].recipe_id] = response.data;
-        });
-        setIngredients(ingredientsData);
-      } catch (error) {
-        console.error('Error fetching data:', error);
-        setError('Failed to fetch data. Please try again.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     if (user) {
       fetchData();
     }
-  }, [user]);
+  }, [user, refreshTrigger]); // Listen to refreshTrigger to refetch data
 
   const formatIngredients = (recipeIngredients) => {
     return recipeIngredients.map(ing => ing.ingredient_name);
@@ -129,7 +127,6 @@ export default function Recipes() {
     </View>
   );
 }
-
 
 const styles = StyleSheet.create({
   container: {

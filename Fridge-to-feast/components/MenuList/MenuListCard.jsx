@@ -3,17 +3,10 @@ import React from 'react';
 import { Colors } from '@/constants/Colors';
 import { useRouter } from 'expo-router';
 
-export default function MenuListCard({ menu, ingredients }) {
-    const formatIngredients = (ingredients) => {
-        const chunkSize = 5; // Number of ingredients per line
-        const chunks = [];
-        for (let i = 0; i < ingredients.length; i += chunkSize) {
-            chunks.push(ingredients.slice(i, i + chunkSize).map(ing => ing.ingredient_name).join(', '));
-        }
-        return chunks;
-    };
-
+export default function MenuListCard({ menu }) {
     const router = useRouter();
+
+    const isComplete = menu.matched_essential_ingredients_count === menu.total_essential_ingredients;
 
     return (
         <TouchableOpacity 
@@ -21,7 +14,7 @@ export default function MenuListCard({ menu, ingredients }) {
                 padding: 10,
                 margin: 10,
                 borderWidth: 1,
-                borderColor: '#000',
+                borderColor: isComplete ? '#000' : '#ccc',
                 backgroundColor: '#fff',
                 display: 'flex',
                 flexDirection: 'row',
@@ -32,10 +25,10 @@ export default function MenuListCard({ menu, ingredients }) {
                 params: { 
                     recipe_id: menu.recipe_id, 
                     recipe_name: menu.recipe_name, 
-                    ingredients: formatIngredients(ingredients).join(', '), 
+                    ingredients: menu.required_ingredients.join(', '),
                     image_path: menu.image_path, 
                     instructions: menu.instructions, 
-                    cooking_method: menu.cooking_method 
+                    cooking_method: menu.cooking_method_name
                 }
             })}
         >
@@ -43,7 +36,7 @@ export default function MenuListCard({ menu, ingredients }) {
                 source={{ uri: menu.image_path }} 
                 style={{ width: 100, height: 100, borderRadius: 15 }}
             />
-            <View>
+            <View style={{ flex: 1 }}>
                 <Text style={{
                     fontFamily: 'outfit-bold',
                     fontSize: 20,
@@ -53,23 +46,24 @@ export default function MenuListCard({ menu, ingredients }) {
                     color: Colors.GRAY,
                     marginTop: 5,
                 }}>
-                    Ingredients:
+                    วัตถุดิบหลักที่มี: {menu.matched_essential_ingredients_count}/{menu.total_essential_ingredients}
                 </Text>
-                {ingredients.length > 0 
-                    ? formatIngredients(ingredients).map((line, index) => (
-                        <Text key={index} style={{
-                            fontFamily: 'outfit-medium',
-                            color: Colors.GRAY,
-                            marginTop: index === 0 ? 0 : 2, // Add marginTop if not the first line
-                        }}>
-                            {line}
-                        </Text>
-                    ))
-                    : <Text style={{
+                {!isComplete && menu.missing_essential_ingredients.length > 0 && (
+                    <Text style={{
                         fontFamily: 'outfit-medium',
-                        color: Colors.GRAY,
-                    }}>No ingredients</Text>
-                }
+                        color: 'red',
+                        marginTop: 2,
+                    }}>
+                        ขาดวัตถุดิบหลัก: {menu.missing_essential_ingredients.join(', ')}
+                    </Text>
+                )}
+                <Text style={{
+                    fontFamily: 'outfit-medium',
+                    color: Colors.GRAY,
+                    marginTop: 2,
+                }}>
+                    วิธีทำ: {menu.cooking_method_name}
+                </Text>
             </View>
         </TouchableOpacity>
     );

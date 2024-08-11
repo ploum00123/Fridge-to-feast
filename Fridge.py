@@ -99,6 +99,7 @@ def create_tables():
         ''',
         'user_refrigerator': '''
             CREATE TABLE IF NOT EXISTS user_refrigerator (
+                user_refrigerator_id INT AUTO_INCREMENT PRIMARY KEY,
                 user_id VARCHAR(255),
                 ingredient_id INT,
                 quantity TEXT,
@@ -118,7 +119,7 @@ def create_tables():
         ''',
         'user_cookmethod': '''
             CREATE TABLE IF NOT EXISTS user_cookmethod (
-                user_id VARCHAR(255),  # Match the type in the 'users' table
+                user_id VARCHAR(255), 
                 cooking_method_id INT,
                 preference_level INT,
                 FOREIGN KEY(user_id) REFERENCES users(user_id),
@@ -129,7 +130,6 @@ def create_tables():
     for table_name, create_query in tables.items():
         mycursor.execute(create_query)
 
-# Call the function to create tables
 create_tables()
 
 # Function to get or create an ID for a given value in a table
