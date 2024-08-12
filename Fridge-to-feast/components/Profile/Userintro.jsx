@@ -28,7 +28,7 @@ export default function Userintro({ refresh }) {
     const fetchUserData = async () => {
         setLoading(true);
         try {
-            const response = await axios.get(`http://192.168.1.253:3000/user_data/${user.id}`);
+            const response = await axios.get(`https://fridge-to-feast-new-e0bee58d224d.herokuapp.com/user_data/${user.id}`);
             if (response.data) {
                 setUserData(prevState => ({
                     ...prevState,
@@ -51,7 +51,7 @@ export default function Userintro({ refresh }) {
 
     const createNewUserRecord = async () => {
         try {
-            await axios.post('http://192.168.1.253:3000/create_user', { user_id: user.id });
+            await axios.post('https://fridge-to-feast-new-e0bee58d224d.herokuapp.com/create_user', { user_id: user.id });
             Alert.alert('New User', 'A new profile has been created for you. Please edit your details.');
         } catch (error) {
             console.error('Error creating new user record:', error);

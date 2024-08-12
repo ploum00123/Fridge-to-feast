@@ -13,7 +13,7 @@ export default function IngredientHistory({ refresh }) {
 
   const fetchIngredientHistory = async () => {
     try {
-      const response = await axios.get(`http://192.168.1.253:3000/ingredient_history/${user.id}`);
+      const response = await axios.get(`https://fridge-to-feast-new-e0bee58d224d.herokuapp.com/ingredient_history/${user.id}`);
       setHistory(response.data);
     } catch (error) {
       console.error('Error fetching ingredient history:', error);

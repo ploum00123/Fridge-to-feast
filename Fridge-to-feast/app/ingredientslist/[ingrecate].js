@@ -22,7 +22,7 @@ export default function IngredientsListByCategory() {
     const getIngredientsList = async () => {
         try {
             setLoading(true);
-            const response = await fetch(`http://192.168.1.253:3000/ingredients_by_category/?category_name=${category_name}`);
+            const response = await fetch(`https://fridge-to-feast-new-e0bee58d224d.herokuapp.com/ingredients_by_category/?category_name=${category_name}`);
             const data = await response.json();
             // console.log(data);
             setIngredientsList(data);

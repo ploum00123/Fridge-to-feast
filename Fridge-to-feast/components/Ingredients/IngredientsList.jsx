@@ -10,7 +10,7 @@ export default function Ingredients() {
     useEffect(() => {
         const fetchIngredients = async () => {
             try {
-                const response = await axios.get('http://192.168.1.253:3000/ingredients');
+                const response = await axios.get('https://fridge-to-feast-new-e0bee58d224d.herokuapp.com/ingredients');
                 setIngredients(response.data);
             } catch (error) {
                 console.error(error);

@@ -17,7 +17,7 @@ export default function CookMethod() {
 
     const fetchCookMethods = async () => {
         try {
-            const response = await axios.get('http://192.168.1.253:3000/cook_methods');
+            const response = await axios.get('https://fridge-to-feast-new-e0bee58d224d.herokuapp.com/cook_methods');
             setCookMethods(response.data);
         } catch (error) {
             console.error('Error fetching cook methods:', error);
@@ -36,7 +36,7 @@ export default function CookMethod() {
     const handleConfirm = async () => {
         if (selectedMethod && sliderValue > 0) {
             try {
-                const response = await axios.post('http://192.168.1.253:3000/add_user_cookmethod', {
+                const response = await axios.post('https://fridge-to-feast-new-e0bee58d224d.herokuapp.com/add_user_cookmethod', {
                     user_id: user.id,
                     cooking_method_id: selectedMethod.cooking_method_id,
                     preference_level: sliderValue

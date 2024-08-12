@@ -5,9 +5,9 @@ import os
 
 # Connect to MySQL database
 mydb = mysql.connector.connect(
-    host="localhost",
+    host="0wt9su.stackhero-network.com",
     user="root",
-    password="",
+    password="EbVfV55Rvo4lXXeMiZieXvZwNE1lnbU2",
     database="fridge_to_feast"
 )
 

@@ -9,7 +9,7 @@ export default function IngredientsCategory() {
   const router = useRouter();
 
   useEffect(() => {
-    fetch('http://192.168.1.253:3000/ingredient_categories')
+    fetch('https://fridge-to-feast-new-e0bee58d224d.herokuapp.com/ingredient_categories')
       .then(response => response.json())
       .then(data => {
         if (Array.isArray(data)) {

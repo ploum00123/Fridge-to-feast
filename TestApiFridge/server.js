@@ -1,10 +1,10 @@
 const express = require('express');
 const bodyParser = require('body-parser');
-const mysql = require('mysql2/promise'); // ใช้ mysql2/promise สำหรับ Promise
+const mysql = require('mysql2/promise');
 const cors = require('cors');
 
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000; // ใช้ process.env.PORT
 
 app.use(cors());
 app.use(bodyParser.json());
@@ -12,14 +12,18 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 // สร้าง connection pool
 const pool = mysql.createPool({
-  host: 'localhost',
+  host: '0wt9su.stackhero-network.com',
   user: 'root',
-  password: '',
+  password: 'EbVfV55Rvo4lXXeMiZieXvZwNE1lnbU2',
   database: 'fridge_to_feast',
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0
+  queueLimit: 0,
+  ssl: {
+    rejectUnauthorized: true
+  }
 });
+
 
 // Route to save userId
 app.post('/saveUserId', async (req, res) => {
@@ -426,57 +430,6 @@ app.post('/create_user', async (req, res) => {
   }
 });
 
-app.get('/recipe_details', async (req, res) => {
-  try {
-    const recipeId = req.query.recipe_id;
-    const userId = req.query.user_id;
-
-    if (!recipeId || !userId) {
-      return res.status(400).json({ error: 'Recipe ID and User ID are required' });
-    }
-
-    // Fetch recipe details
-    const recipeQuery = `
-      SELECT 
-        r.recipe_id, 
-        r.recipe_name, 
-        r.cooking_method_id,
-        r.image_path,
-        r.category_id,
-        cc.cooking_method_name,
-        GROUP_CONCAT(DISTINCT i.ingredient_name) AS required_ingredients,
-        COUNT(DISTINCT CASE WHEN ri.ingredient_id IN (SELECT ingredient_id FROM user_refrigerator WHERE user_id = ?) AND ri.is_essential = TRUE THEN ri.ingredient_id END) AS matched_essential_ingredients_count,
-        COUNT(DISTINCT CASE WHEN ri.is_essential = TRUE THEN ri.ingredient_id END) AS total_essential_ingredients,
-        GROUP_CONCAT(DISTINCT CASE WHEN ri.is_essential = TRUE AND ri.ingredient_id NOT IN (SELECT ingredient_id FROM user_refrigerator WHERE user_id = ?) THEN i.ingredient_name END) AS missing_essential_ingredients
-      FROM recipes r
-      JOIN recipe_ingredients ri ON r.recipe_id = ri.recipe_id
-      JOIN ingredients i ON ri.ingredient_id = i.ingredient_id
-      JOIN cookmethod_category cc ON r.cooking_method_id = cc.cooking_method_id
-      WHERE r.recipe_id = ?
-      GROUP BY r.recipe_id, r.recipe_name, r.cooking_method_id, r.image_path, r.category_id, cc.cooking_method_name
-    `;
-
-    // เปลี่ยนจาก db.query เป็น pool.query
-    const [recipeDetails] = await pool.query(recipeQuery, [userId, userId, recipeId]);
-
-    if (recipeDetails.length === 0) {
-      return res.status(404).json({ error: 'Recipe not found' });
-    }
-
-    // Process recipe details
-    const processedDetails = {
-      ...recipeDetails[0],
-      required_ingredients: recipeDetails[0].required_ingredients.split(','),
-      missing_essential_ingredients: recipeDetails[0].missing_essential_ingredients ? recipeDetails[0].missing_essential_ingredients.split(',') : []
-    };
-
-    res.json(processedDetails);
-  } catch (err) {
-    console.error('Error fetching recipe details:', err);
-    res.status(500).json({ error: 'Internal Server Error', details: err.message });
-  }
-});
-
 app.get('/ingredient_history/:userId', async (req, res) => {
   try {
     const userId = req.params.userId;
@@ -512,6 +465,104 @@ app.put('/update_user/:userId', async (req, res) => {
   }
 });
 
+app.get('/recipe_details', async (req, res) => {
+  console.log('Received request for /recipe_details');
+  console.log('Query params:', req.query);
+  console.log('Headers:', req.headers);
+
+  const { recipe_id } = req.query;
+
+  if (!recipe_id) {
+    console.log('No recipe ID provided');
+    return res.status(400).json({ error: 'Recipe ID is required' });
+  }
+
+  try {
+    const query = `
+      SELECT 
+        r.recipe_id, 
+        r.recipe_name, 
+        r.cooking_method_id,
+        r.instructions,
+        r.image_path,
+        r.category_id,
+        cc.cooking_method_name,
+        GROUP_CONCAT(DISTINCT i.ingredient_name) AS required_ingredients
+      FROM recipes r
+      JOIN recipe_ingredients ri ON r.recipe_id = ri.recipe_id
+      JOIN ingredients i ON ri.ingredient_id = i.ingredient_id
+      JOIN cookmethod_category cc ON r.cooking_method_id = cc.cooking_method_id
+      WHERE r.recipe_id = ?
+      GROUP BY r.recipe_id
+    `;
+
+    console.log('Executing query:', query);
+    console.log('With recipe_id:', recipe_id);
+
+    const [results] = await pool.query(query, [recipe_id]);
+
+    console.log('Query results:', results);
+
+    if (results.length === 0) {
+      console.log('No recipe found for recipe_id:', recipe_id);
+      return res.status(404).json({ error: 'Recipe not found' });
+    }
+
+    const recipeDetails = results[0];
+    recipeDetails.required_ingredients = recipeDetails.required_ingredients ? recipeDetails.required_ingredients.split(',') : [];
+
+    console.log('Sending recipe details:', recipeDetails);
+    res.json(recipeDetails);
+  } catch (error) {
+    console.error('Error fetching recipe details:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
+app.get('/recipe_ingredient_status', async (req, res) => {
+  const { recipe_id, user_id } = req.query;
+
+  if (!recipe_id || !user_id) {
+    return res.status(400).json({ error: 'Recipe ID and User ID are required' });
+  }
+
+  try {
+    const query = `
+      SELECT 
+        ri.ingredient_id,
+        i.ingredient_name,
+        ri.is_essential,
+        CASE WHEN ur.ingredient_id IS NOT NULL THEN TRUE ELSE FALSE END AS user_has_ingredient
+      FROM recipe_ingredients ri
+      JOIN ingredients i ON ri.ingredient_id = i.ingredient_id
+      LEFT JOIN user_refrigerator ur ON ri.ingredient_id = ur.ingredient_id AND ur.user_id = ?
+      WHERE ri.recipe_id = ?
+    `;
+
+    const [results] = await pool.query(query, [user_id, recipe_id]);
+
+    const essentialIngredients = results.filter(ing => ing.is_essential);
+    const matchedEssentialIngredients = essentialIngredients.filter(ing => ing.user_has_ingredient);
+    const missingEssentialIngredients = essentialIngredients.filter(ing => !ing.user_has_ingredient);
+
+    res.json({
+      recipe_id: recipe_id,
+      total_essential_ingredients: essentialIngredients.length,
+      matched_essential_ingredients_count: matchedEssentialIngredients.length,
+      missing_essential_ingredients: missingEssentialIngredients.map(ing => ing.ingredient_name),
+      ingredient_status: results.map(ing => ({
+        ingredient_id: ing.ingredient_id,
+        ingredient_name: ing.ingredient_name,
+        is_essential: ing.is_essential,
+        user_has_ingredient: ing.user_has_ingredient
+      }))
+    });
+  } catch (error) {
+    console.error('Error fetching recipe ingredient status:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
 app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+  console.log(`Server running on port ${port}`); // แสดงพอร์ตที่ใช้จริง
 });

@@ -25,7 +25,7 @@ export default function MenuListByCategory() {
     const getMenuList = async () => {
         try {
             setLoading(true);
-            const response = await fetch(`http://192.168.1.253:3000/recipes/?category_id=${category_id}`);
+            const response = await fetch(`https://fridge-to-feast-new-e0bee58d224d.herokuapp.com/recipes/?category_id=${category_id}`);
             const data = await response.json();
             console.log(data);
             setMenuList(data);
@@ -40,7 +40,7 @@ export default function MenuListByCategory() {
 
     const getRecipeDetails = async (recipeId) => {
         try {
-            const response = await fetch(`http://192.168.1.253:3000/recipe_details/?recipe_id=${recipeId}&user_id=${user.id}`);
+            const response = await fetch(`https://fridge-to-feast-new-e0bee58d224d.herokuapp.com/recipe_details/?recipe_id=${recipeId}&user_id=${user.id}`);
             const data = await response.json();
             setIngredients(prev => ({ ...prev, [recipeId]: data }));
         } catch (error) {

@@ -9,7 +9,7 @@ export default function Search() {
   const router = useRouter();
 
   useEffect(() => {
-    fetch('http://192.168.1.253:3000/ingredients')
+    fetch('https://fridge-to-feast-new-e0bee58d224d.herokuapp.com/ingredients')
       .then(response => response.json())
       .then(data => {
         setIngredients(data);

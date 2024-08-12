@@ -13,13 +13,13 @@ export default function Header() {
   useEffect(() => {
     const fetchRecipesAndIngredients = async () => {
       try {
-        const response = await axios.get('http://192.168.1.253:3000/recipes');
+        const response = await axios.get('https://fridge-to-feast-new-e0bee58d224d.herokuapp.com/recipes');
         const fetchedRecipes = response.data;
         setRecipes(fetchedRecipes);
 
         // Fetch ingredients for each recipe
         const ingredientsPromises = fetchedRecipes.map(async (recipe) => {
-          const response = await axios.get(`http://192.168.1.253:3000/recipe_ingredients/?recipe_id=${recipe.recipe_id}`);
+          const response = await axios.get(`https://fridge-to-feast-new-e0bee58d224d.herokuapp.com/recipe_ingredients/?recipe_id=${recipe.recipe_id}`);
           return { recipe_id: recipe.recipe_id, ingredients: response.data };
         });
 

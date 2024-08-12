@@ -19,7 +19,7 @@ export default function MenuDetail() {
 
   const handleAddIngredient = async () => {
     try {
-      await axios.post('http://192.168.1.253:3000/add_ingredient', {
+      await axios.post('https://fridge-to-feast-new-e0bee58d224d.herokuapp.com/add_ingredient', {
         user_id: user.id, // Replace with actual user ID
         ingredient_id: recipe_id,
       });

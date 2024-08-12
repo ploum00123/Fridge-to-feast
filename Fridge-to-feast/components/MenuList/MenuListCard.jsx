@@ -1,12 +1,29 @@
 import { View, Text, Image, TouchableOpacity } from 'react-native';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Colors } from '@/constants/Colors';
 import { useRouter } from 'expo-router';
+import { useUser } from '@clerk/clerk-expo';
+import axios from 'axios';
 
 export default function MenuListCard({ menu }) {
     const router = useRouter();
+    const { user } = useUser();
+    const [ingredientStatus, setIngredientStatus] = useState(null);
 
-    const isComplete = menu.matched_essential_ingredients_count === menu.total_essential_ingredients;
+    useEffect(() => {
+        const fetchIngredientStatus = async () => {
+            try {
+                const response = await axios.get(`https://fridge-to-feast-new-e0bee58d224d.herokuapp.com/recipe_ingredient_status?recipe_id=${menu.recipe_id}&user_id=${user.id}`);
+                setIngredientStatus(response.data);
+            } catch (error) {
+                console.error('Error fetching ingredient status:', error);
+            }
+        };
+
+        fetchIngredientStatus();
+    }, [menu.recipe_id, user.id]);
+
+    const isComplete = ingredientStatus && ingredientStatus.matched_essential_ingredients_count === ingredientStatus.total_essential_ingredients;
 
     return (
         <TouchableOpacity 
@@ -41,21 +58,25 @@ export default function MenuListCard({ menu }) {
                     fontFamily: 'outfit-bold',
                     fontSize: 20,
                 }}>{menu.recipe_name}</Text>
-                <Text style={{
-                    fontFamily: 'outfit-medium',
-                    color: Colors.GRAY,
-                    marginTop: 5,
-                }}>
-                    วัตถุดิบหลักที่มี: {menu.matched_essential_ingredients_count}/{menu.total_essential_ingredients}
-                </Text>
-                {!isComplete && menu.missing_essential_ingredients.length > 0 && (
-                    <Text style={{
-                        fontFamily: 'outfit-medium',
-                        color: 'red',
-                        marginTop: 2,
-                    }}>
-                        ขาดวัตถุดิบหลัก: {menu.missing_essential_ingredients.join(', ')}
-                    </Text>
+                {ingredientStatus && (
+                    <>
+                        <Text style={{
+                            fontFamily: 'outfit-medium',
+                            color: Colors.GRAY,
+                            marginTop: 5,
+                        }}>
+                            วัตถุดิบหลักที่มี: {ingredientStatus.matched_essential_ingredients_count}/{ingredientStatus.total_essential_ingredients}
+                        </Text>
+                        {!isComplete && ingredientStatus.missing_essential_ingredients.length > 0 && (
+                            <Text style={{
+                                fontFamily: 'outfit-medium',
+                                color: 'red',
+                                marginTop: 2,
+                            }}>
+                                ขาดวัตถุดิบหลัก: {ingredientStatus.missing_essential_ingredients.join(', ')}
+                            </Text>
+                        )}
+                    </>
                 )}
                 <Text style={{
                     fontFamily: 'outfit-medium',

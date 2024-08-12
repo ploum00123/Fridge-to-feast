@@ -21,7 +21,7 @@ const IngredientsScreen = () => {
     if (user) {
       try {
         setLoading(true);
-        await axios.post('http://192.168.1.253:3000/saveUserId', {
+        await axios.post('https://fridge-to-feast-new-e0bee58d224d.herokuapp.com/saveUserId', {
           userId: user.id,
         });
         console.log('User ID sent to server');

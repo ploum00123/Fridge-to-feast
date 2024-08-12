@@ -20,7 +20,7 @@ export default function AddIngredient() {
 
   const fetchUserIngredients = async () => {
     try {
-      const response = await axios.get(`http://192.168.1.253:3000/user_ingredients/${user.id}`);
+      const response = await axios.get(`https://fridge-to-feast-new-e0bee58d224d.herokuapp.com/user_ingredients/${user.id}`);
       setUserIngredients(response.data);
     } catch (error) {
       console.error('Error fetching user ingredients:', error);
@@ -30,7 +30,7 @@ export default function AddIngredient() {
   const handleDeleteIngredient = async (ingredientId) => {
     setLoading(true);
     try {
-      await axios.delete(`http://192.168.1.253:3000/delete_ingredient`, {
+      await axios.delete(`https://fridge-to-feast-new-e0bee58d224d.herokuapp.com/delete_ingredient`, {
         data: {
           user_id: user.id,
           ingredient_id: ingredientId,

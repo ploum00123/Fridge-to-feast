@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { View, StyleSheet, SafeAreaView, FlatList, Button } from 'react-native';
 import { useUser } from '@clerk/clerk-expo';
-import axios from 'axios';
 import Recipes from '@/components/Home/Recipes';
 import Header from '@/components/Home/Header';
 import Category from '@/components/Home/Category';
@@ -30,7 +29,7 @@ const HomeScreen = () => {
         data={[]} // Empty data to prevent FlatList from rendering items (only used for structure)
         ListHeaderComponent={renderHeader}
         renderItem={null} // No items to render
-        ListFooterComponent={<Recipes refreshTrigger={refreshTrigger} />} // Pass refreshTrigger to Recipes
+        ListFooterComponent={<Recipes refreshTrigger={refreshTrigger} />}
         contentContainerStyle={styles.scrollViewContent}
       />
     </SafeAreaView>

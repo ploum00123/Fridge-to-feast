@@ -33,7 +33,7 @@ export default function EditProfile() {
 
     setLoading(true);
     try {
-      const response = await axios.put(`http://192.168.1.253:3000/update_user/${params.user_id}`, userData);
+      const response = await axios.put(`https://fridge-to-feast-new-e0bee58d224d.herokuapp.com/update_user/${params.user_id}`, userData);
       if (response.status === 200) {
         Alert.alert('Success', 'Profile updated successfully');
         router.back();
