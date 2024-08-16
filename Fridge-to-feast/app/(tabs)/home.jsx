@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, SafeAreaView, FlatList, Button } from 'react-native';
+import { View, StyleSheet, SafeAreaView, FlatList, TouchableOpacity, Text } from 'react-native';
 import { useUser } from '@clerk/clerk-expo';
 import Recipes from '@/components/Home/Recipes';
 import Header from '@/components/Home/Header';
 import Category from '@/components/Home/Category';
+import { Colors } from '@/constants/Colors';
 
 const HomeScreen = () => {
   const { user } = useUser();
@@ -18,7 +19,9 @@ const HomeScreen = () => {
       <Header />
       <View style={styles.contentWrapper}>
         <Category />
-        <Button title="Refresh Recipes" onPress={handleRefresh} />
+        <TouchableOpacity style={styles.refreshButton} onPress={handleRefresh}>
+          <Text style={styles.refreshButtonText}>Refresh Recipes</Text>
+        </TouchableOpacity>
       </View>
     </>
   );
@@ -26,9 +29,9 @@ const HomeScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       <FlatList
-        data={[]} // Empty data to prevent FlatList from rendering items (only used for structure)
+        data={[]}
         ListHeaderComponent={renderHeader}
-        renderItem={null} // No items to render
+        renderItem={null}
         ListFooterComponent={<Recipes refreshTrigger={refreshTrigger} />}
         contentContainerStyle={styles.scrollViewContent}
       />
@@ -48,5 +51,26 @@ const styles = StyleSheet.create({
   },
   contentWrapper: {
     padding: 16,
+  },
+  refreshButton: {
+    backgroundColor: Colors.PRIMARY,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 25,
+    alignItems: 'center',
+    marginTop: 10,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  refreshButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });

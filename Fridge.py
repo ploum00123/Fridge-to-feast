@@ -5,9 +5,9 @@ import os
 
 # Connect to MySQL database
 mydb = mysql.connector.connect(
-    host="0wt9su.stackhero-network.com",
+    host="189859.stackhero-network.com",
     user="root",
-    password="EbVfV55Rvo4lXXeMiZieXvZwNE1lnbU2",
+    password="LnZCvhrjpAUuNJCWPQzR8IyQ1nsuJMEp",
     database="fridge_to_feast"
 )
 
@@ -20,21 +20,21 @@ def create_tables():
             CREATE TABLE IF NOT EXISTS categories (
                 category_id INT AUTO_INCREMENT PRIMARY KEY,
                 category_name VARCHAR(255),
-                category_image VARCHAR(255)
+                category_image TEXT
             )
         ''',
         'cookmethod_category': '''
             CREATE TABLE IF NOT EXISTS cookmethod_category (
                 cooking_method_id INT AUTO_INCREMENT PRIMARY KEY,
                 cooking_method_name VARCHAR(255),
-                cooking_image VARCHAR(255)
+                cooking_image TEXT
             )
         ''',
         'ingredient_categories': '''
             CREATE TABLE IF NOT EXISTS ingredient_categories (
                 ingredient_category_id INT AUTO_INCREMENT PRIMARY KEY,
                 category_name VARCHAR(255),
-                category_image VARCHAR(255)
+                category_image TEXT
             )
         ''',
         'recipes': '''
@@ -43,7 +43,7 @@ def create_tables():
                 recipe_name VARCHAR(255),
                 cooking_method_id INT,
                 instructions TEXT,
-                image_path VARCHAR(255),
+                image_path TEXT,
                 category_id INT,
                 FOREIGN KEY(category_id) REFERENCES categories(category_id),
                 FOREIGN KEY(cooking_method_id) REFERENCES cookmethod_category(cooking_method_id) 
@@ -54,7 +54,7 @@ def create_tables():
                 ingredient_id INT AUTO_INCREMENT PRIMARY KEY,
                 ingredient_name VARCHAR(255),
                 ingredient_type VARCHAR(255),
-                ingredient_image VARCHAR(255),
+                ingredient_image TEXT,
                 ingredient_category_id INT,
                 FOREIGN KEY(ingredient_category_id) REFERENCES ingredient_categories(ingredient_category_id)
             )

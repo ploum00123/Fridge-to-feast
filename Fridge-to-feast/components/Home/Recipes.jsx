@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, Image, Pressable, ActivityIndicator, RefreshControl, Button } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Image, Pressable, ActivityIndicator, RefreshControl, TouchableOpacity } from 'react-native';
 import axios from 'axios';
 import { useRouter } from 'expo-router';
 import { useUser } from '@clerk/clerk-expo';
+import { Colors } from '@/constants/Colors';
 
 export default function Recipes({ refreshTrigger }) {
   const [recipes, setRecipes] = useState([]);
@@ -79,7 +80,7 @@ export default function Recipes({ refreshTrigger }) {
 
     return (
       <Pressable
-        style={[styles.recipeContainer, isComplete ? styles.completeRecipe : styles.incompleteRecipe]}
+        style={[styles.recipeContainer, !showAllRecipes && (isComplete ? styles.completeRecipe : styles.incompleteRecipe)]}
         onPress={() => router.push({
           pathname: `/menudetail/${item.recipe_id}`,
           params: { recipe_id: item.recipe_id }
@@ -88,15 +89,19 @@ export default function Recipes({ refreshTrigger }) {
         <Image source={{ uri: item.image_path }} style={styles.image} />
         <View style={styles.infoContainer}>
           <Text style={styles.recipeName} numberOfLines={2}>{item.recipe_name}</Text>
-          <Text style={styles.ingredientCount}>
-            วัตถุดิบหลักที่มี: {item.matched_essential_ingredients_count}/{item.total_essential_ingredients}
-          </Text>
-          {!isComplete && item.missing_essential_ingredients && (
-            <Text style={styles.missingIngredients} numberOfLines={3}>
-              ขาดวัตถุดิบหลัก: {item.missing_essential_ingredients.join(', ')}
-            </Text>
+          {!showAllRecipes && (
+            <>
+              <Text style={styles.ingredientCount}>
+                วัตถุดิบหลักที่มี: {item.matched_essential_ingredients_count}/{item.total_essential_ingredients}
+              </Text>
+              {!isComplete && item.missing_essential_ingredients && (
+                <Text style={styles.missingIngredients} numberOfLines={3}>
+                  ขาดวัตถุดิบหลัก: {item.missing_essential_ingredients.join(', ')}
+                </Text>
+              )}
+              <Text style={styles.cookingMethod}>วิธีทำ: {cookingMethodName}</Text>
+            </>
           )}
-          <Text style={styles.cookingMethod}>วิธีทำ: {cookingMethodName}</Text>
         </View>
       </Pressable>
     );
@@ -105,10 +110,14 @@ export default function Recipes({ refreshTrigger }) {
   return (
     <View style={styles.container}>
       <View style={styles.buttonContainer}>
-        <Button 
-          title={showAllRecipes ? "แสดงเมนูแนะนำ" : "แสดงเมนูทั้งหมด"} 
+        <TouchableOpacity 
+          style={styles.toggleButton}
           onPress={() => setShowAllRecipes(!showAllRecipes)}
-        />
+        >
+          <Text style={styles.toggleButtonText}>
+            {showAllRecipes ? "แสดงเมนูแนะนำ" : "แสดงเมนูทั้งหมด"}
+          </Text>
+        </TouchableOpacity>
       </View>
       <Text style={styles.heading}>{showAllRecipes ? "เมนูทั้งหมด" : "เมนูแนะนำ"}</Text>
       {loading ? (
@@ -138,6 +147,50 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 10,
+  },
+  buttonContainer: {
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  toggleButton: {
+    backgroundColor: Colors.PRIMARY,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 25,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    // เพิ่ม properties เหล่านี้เพื่อให้ตัวอักษรอยู่ตรงกลาง
+    justifyContent: 'center',
+    alignItems: 'center',
+    minWidth: 150, // กำหนดความกว้างขั้นต่ำเพื่อให้ปุ่มมีขนาดคงที่
+  },
+  recipeContainer: {
+    backgroundColor: '#f9f9f9',
+    borderRadius: 8,
+    width: '48%',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#ccc',
+  },
+  completeRecipe: {
+    borderColor: '#000',
+    borderWidth: 2,
+  },
+  incompleteRecipe: {
+    borderColor: '#ccc',
+    borderWidth: 2,
+  },
+  toggleButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+    textAlign: 'center', // เพิ่ม property นี้เพื่อให้ตัวอักษรอยู่ตรงกลางในกรณีที่มีหลายบรรทัด
   },
   buttonContainer: {
     marginBottom: 10,

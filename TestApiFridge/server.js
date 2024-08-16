@@ -12,9 +12,9 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 // สร้าง connection pool
 const pool = mysql.createPool({
-  host: '0wt9su.stackhero-network.com',
+  host: '189859.stackhero-network.com',
   user: 'root',
-  password: 'EbVfV55Rvo4lXXeMiZieXvZwNE1lnbU2',
+  password: 'LnZCvhrjpAUuNJCWPQzR8IyQ1nsuJMEp',
   database: 'fridge_to_feast',
   waitForConnections: true,
   connectionLimit: 10,

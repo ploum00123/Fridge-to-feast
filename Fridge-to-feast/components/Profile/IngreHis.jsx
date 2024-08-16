@@ -60,7 +60,7 @@ const styles = StyleSheet.create({
     borderColor: '#ccc',
     borderRadius: 5,
     padding: 10,
-    maxHeight: 300, // จำกัดความสูงของ container
+    maxHeight: 3000, // จำกัดความสูงของ container
   },
   historyItem: {
     flexDirection: 'row',
